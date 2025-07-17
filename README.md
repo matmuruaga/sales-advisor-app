@@ -1,1 +1,0 @@
-# sales-advisor-app
