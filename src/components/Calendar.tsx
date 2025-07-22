@@ -1,31 +1,51 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, MessageSquare, Phone, GitBranch } from 'lucide-react';
 import { Button } from './ui/button';
 
-// --- **CORRECCIÓN DE TYPESCRIPT** ---
 
-// 1. Define the props interface for the component
 interface CalendarProps {
   selectedDate: Date | null;
   onDateSelect: (date: Date) => void;
+  onScheduleMeeting: () => void; 
+  onSimulateConversation: () => void;
+  onGenerateCallScript: () => void;
+  onViewNestedMeetings: () => void;
 }
 
-// 2. Use the `Record` utility type to create a strongly-typed object for mockMeetings.
-//    This tells TypeScript that the keys will be strings (dates in 'YYYY-MM-DD' format)
-//    and the values will be arrays of strings (meeting IDs).
+// --- DATOS ACTUALIZADOS A JULIO 2025 ---
 const mockMeetings: Record<string, string[]> = {
-  '2025-01-15': ['meeting-1', 'meeting-2'],
-  '2025-01-16': ['meeting-3'],
-  '2025-01-18': ['meeting-4', 'meeting-5'],
-  '2025-01-20': ['meeting-6'],
-  '2025-01-22': ['meeting-7'],
-  '2025-01-24': ['meeting-8', 'meeting-9'],
-  '2025-01-27': ['meeting-10'],
-  '2025-01-29': ['meeting-11'],
+  '2025-07-17': ['meeting-1', 'meeting-2'],
+  '2025-07-18': ['meeting-3'],
+  '2025-07-20': ['meeting-4', 'meeting-5'],
+  '2025-07-22': ['meeting-6'],
+  '2025-07-24': ['meeting-7'],
+  '2025-07-27': ['meeting-8', 'meeting-9'],
+  '2025-07-29': ['meeting-10'],
+  '2025-07-31': ['meeting-11'],
 };
 
-export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2025, 0)); // Enero 2025
+// --- COMPONENTE PARA ACCIONES RÁPIDAS CON ESTILO REFINADO ---
+const QuickActionButton = ({ icon: Icon, label, gradient, onClick }: { 
+  icon: React.ElementType; 
+  label: string; 
+  gradient: string; 
+  onClick?: () => void; 
+}) => (
+  <div className={`rounded-lg bg-gradient-to-br ${gradient} p-px shadow-sm hover:shadow-md transition-shadow`}>
+    <button 
+      onClick={onClick} // <-- Se añade la propiedad onClick aquí
+      className="w-full h-full bg-slate-50 hover:bg-white/50 backdrop-blur-sm rounded-[7px] px-3 py-2 text-xs text-gray-700 transition-colors flex items-center"
+    >
+      <Icon className="w-4 h-4 mr-2" />
+      <span>{label}</span>
+    </button>
+  </div>
+);
+
+
+export function Calendar({ selectedDate, onDateSelect, onScheduleMeeting, onSimulateConversation, onGenerateCallScript, onViewNestedMeetings }: CalendarProps) {
+  // --- MES INICIAL CAMBIADO A JULIO 2025 ---
+  const [currentMonth, setCurrentMonth] = useState(new Date(2025, 6)); 
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -33,25 +53,21 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    // Ensure getDay() returns 0 for Sunday, which is the expected start of the week.
     const startingDayOfWeek = firstDay.getDay(); 
 
     const days = [];
     
-    // Days from the previous month to fill the first week
     for (let i = startingDayOfWeek; i > 0; i--) {
       const day = new Date(year, month, 1 - i);
       days.push({ date: day, isCurrentMonth: false });
     }
     
-    // Days of the current month
     for (let i = 1; i <= daysInMonth; i++) {
       const day = new Date(year, month, i);
       days.push({ date: day, isCurrentMonth: true });
     }
 
-    // Days from the next month to fill the last week
-    const remainingDays = 42 - days.length; // 6 weeks * 7 days
+    const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
         const day = new Date(year, month + 1, i);
         days.push({ date: day, isCurrentMonth: false});
@@ -61,16 +77,11 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
   };
 
   const formatDateKey = (date: Date) => {
-    // Helper to format the date as a 'YYYY-MM-DD' string key
     return date.toISOString().split('T')[0];
   };
 
   const hasMeetings = (date: Date) => {
     return mockMeetings[formatDateKey(date)]?.length > 0;
-  };
-
-  const getMeetingCount = (date: Date) => {
-    return mockMeetings[formatDateKey(date)]?.length || 0;
   };
 
   const days = getDaysInMonth(currentMonth);
@@ -92,67 +103,61 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg text-gray-800">
-          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-        </h2>
-        <div className="flex space-x-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigateMonth('prev')}
-            className="h-8 w-8 p-0 hover:bg-purple-100"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigateMonth('next')}
-            className="h-8 w-8 p-0 hover:bg-purple-100"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+    <div className="h-full flex flex-col">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-800">
+            {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+          </h2>
+          <div className="flex space-x-1">
+            <Button variant="ghost" size="sm" onClick={() => navigateMonth('prev')} className="h-8 w-8 p-0 hover:bg-gray-100"><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="sm" onClick={() => navigateMonth('next')} className="h-8 w-8 p-0 hover:bg-gray-100"><ChevronRight className="h-4 w-4" /></Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-2">
+          {['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'].map(day => <div key={day} className="font-medium">{day}</div>)}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {days.map((day, index) => {
+            const isSelected = selectedDate && day.date.toDateString() === selectedDate.toDateString();
+            const isToday = day.date.toDateString() === new Date().toDateString();
+            const hasMeeting = hasMeetings(day.date);
+            
+            return (
+              <button
+                key={index}
+                onClick={() => day.isCurrentMonth && onDateSelect(day.date)}
+                className={`
+                  relative h-9 w-9 text-sm rounded-lg transition-colors duration-200
+                  ${day.isCurrentMonth ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-300'}
+                  ${isSelected ? 'bg-gray-900 text-white hover:bg-gray-900' : ''}
+                  ${isToday && !isSelected ? 'font-bold text-purple-600' : ''}
+                `}
+              >
+                <span className="relative z-10">{day.date.getDate()}</span>
+                {/* --- INDICADOR DE REUNIÓN MINIMALISTA --- */}
+                {hasMeeting && day.isCurrentMonth && !isSelected && (
+                  <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-gray-400"></div>
+                )}
+                {hasMeeting && day.isCurrentMonth && isSelected && (
+                  <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-white/50"></div>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-2">
-        {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(day => (
-          <div key={day} className="p-2">{day}</div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-1">
-        {days.map((day, index) => {
-          const isSelected = selectedDate && day.date.toDateString() === selectedDate.toDateString();
-          const isToday = day.date.toDateString() === new Date().toDateString();
-          const meetingCount = getMeetingCount(day.date);
-          
-          return (
-            <button
-              key={index}
-              onClick={() => day.isCurrentMonth && onDateSelect(day.date)}
-              className={`
-                relative p-2 text-sm rounded-lg transition-all duration-200
-                ${day.isCurrentMonth ? 'text-gray-800 hover:bg-purple-50' : 'text-gray-300'}
-                ${isSelected ? 'bg-purple-500 text-white' : ''}
-                ${isToday && !isSelected ? 'bg-blue-100 text-blue-600' : ''}
-                ${hasMeetings(day.date) && day.isCurrentMonth ? 'font-medium' : ''}
-              `}
-            >
-              <span className="relative z-10">{day.date.getDate()}</span>
-              
-              {meetingCount > 0 && day.isCurrentMonth && (
-                <div className="absolute -top-1 -right-1 z-20">
-                  <div className="w-5 h-5 bg-gradient-to-r from-pink-400 to-purple-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs">{meetingCount}</span>
-                  </div>
-                </div>
-              )}
-            </button>
-          );
-        })}
+     <div className="flex-grow flex flex-col justify-end pt-6">
+        <div className="border-t border-gray-200/80 pt-4">
+          <h4 className="text-xs text-gray-500 uppercase font-semibold mb-3">Acciones Rápidas</h4>
+          <div className="flex flex-col space-y-2">
+            <QuickActionButton icon={CalendarIcon} label="Agendar Reunión" onClick={onScheduleMeeting} />
+            <QuickActionButton icon={MessageSquare} label="Simular Conversación" onClick={onSimulateConversation} />
+            <QuickActionButton icon={Phone} label="Script de Llamada"  onClick={onGenerateCallScript} />
+             <QuickActionButton icon={GitBranch} label="Reuniones Anidadas"  onClick={onViewNestedMeetings} />
+          </div>
+        </div>
       </div>
     </div>
   );

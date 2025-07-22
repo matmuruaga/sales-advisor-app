@@ -1,90 +1,156 @@
 "use client";
 
-import { useState } from 'react';
-import { Calendar } from '@/components/Calendar';
-import { MeetingCards } from '@/components/MeetingCards';
-import { ParticipantCards } from '@/components/ParticipantCards';
-import { AIInsights } from '@/components/AIInsights';
-import { ActionPanel } from '@/components/ActionPanel';
+import { useState } from "react";
+import { Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/Calendar";
+import { MeetingTimeline } from "@/components/MeetingTimeline";
+import { AppHeader } from "@/components/AppHeader";
+import { AnalyticsPage } from "@/components/AnalyticsPage";
+import { ScheduleMeetingModal } from "@/components/ScheduleMeetingModal";
+import { QuickSimulateModal } from "@/components/QuickSimulateModal";
+import { CallScriptModal } from "@/components/CallScriptModal";
+import { NestedMeetingsModal } from "@/components/NestedMeetingsModal";
+import { AgentCommandPalette } from "@/components/AgentCommandPalette";
+
+const mockMeetings: Record<string, any[]> = {
+  "2025-07-17": [
+    {
+      id: "meeting-1",
+      title: "Demo Producto – TechCorp",
+      description: "Presentación de solución para equipo de desarrollo",
+      time: "10:00",
+      dateTime: "2025-07-17T10:00:00",
+      duration: "45",
+      platform: "google-meet",
+      type: "oportunidad",
+      participants: ["participant-1", "participant-2"],
+    },
+    {
+      id: "meeting-2",
+      title: "Follow‑up ClienteX",
+      description: "Revisión de propuesta y próximos pasos",
+      time: "15:00",
+      dateTime: "2025-07-17T15:00:00",
+      duration: "30",
+      platform: "teams",
+      type: "follow-up",
+      participants: ["participant-3"],
+    },
+  ],
+  "2025-07-18": [
+    {
+      id: "meeting-3",
+      title: "Weekly Sales Review",
+      description: "Revisión semanal de pipeline y métricas",
+      time: "09:00",
+      dateTime: "2025-07-18T09:00:00",
+      duration: "60",
+      platform: "zoom",
+      type: "weekly",
+      participants: ["participant-4", "participant-5", "participant-6"],
+    },
+  ],
+};
 
 export default function HomePage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date('2025-01-15'));
-  const [selectedMeeting, setSelectedMeeting] = useState<string | null>('meeting-1');
-  const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date("2025-07-17"));
+  const [selectedMeeting, setSelectedMeeting] = useState<string | null>(null);
+  const [view, setView] = useState<"meetings" | "analytics">("meetings");
 
-  const handleDateSelect = (date: Date) => {
-    setSelectedDate(date);
-    setSelectedMeeting(null); 
-    setSelectedParticipant(null);
-  };
+  const [open, setOpen] = useState({
+    schedule: false,
+    simulate: false,
+    call: false,
+    nested: false,
+    agent: false,
+  });
 
-  const handleMeetingSelect = (meetingId: string) => {
-    setSelectedMeeting(meetingId);
-    setSelectedParticipant(null);
+  const toggle = (key: keyof typeof open, v: boolean) =>
+    setOpen((prev) => ({ ...prev, [key]: v }));
+
+  const handleDate = (d: Date) => {
+    setSelectedDate(d);
+    setSelectedMeeting(null);
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-            SalesAI Advisor
-          </h1>
-          <p className="text-gray-600">Tu asistente inteligente para reuniones de ventas</p>
-        </header>
-        
-        {/* --- CORRECCIÓN DE LAYOUT ---
-            He cambiado los valores de col-span para una distribución más equilibrada.
-            - Columna 1: col-span-3
-            - Columna 2: col-span-3
-            - Columna 3: col-span-3
-            - Columna 4: col-span-3
-            Esto hace que la columna 4 sea más ancha y la 3 más estrecha, solucionando los desbordamientos.
-        */}
-        <div className="grid grid-cols-12 gap-6 h-[calc(100vh-160px)]">
-          {/* Columna 1: Calendario y Reuniones */}
-          <div className="col-span-3 bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 flex flex-col gap-6">
-            <Calendar 
-              selectedDate={selectedDate}
-              onDateSelect={handleDateSelect}
-            />
-            
-            <div className="flex-1 overflow-y-auto pr-2">
-              {selectedDate && (
-                <MeetingCards 
-                  key={selectedDate.toISOString()} 
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 text-gray-800 dark:text-gray-100 selection:bg-purple-200 dark:selection:bg-purple-600">
+      <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8 py-6 space-y-6">
+        <AppHeader activeView={view} setActiveView={setView} />
+
+        <motion.section
+          key={view}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.25 }}
+          className="h-[calc(100vh-152px)]"
+        >
+          {view === "meetings" ? (
+            <div className="grid grid-cols-12 gap-6 h-full">
+              <div className="col-span-12 lg:col-span-3 bg-white/70 dark:bg-white/5 backdrop-blur-md rounded-3xl p-6 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10 flex flex-col">
+                <Calendar
+                  selectedDate={selectedDate}
+                  onDateSelect={handleDate}
+                  onScheduleMeeting={() => toggle("schedule", true)}
+                  onSimulateConversation={() => toggle("simulate", true)}
+                  onGenerateCallScript={() => toggle("call", true)}
+                  onViewNestedMeetings={() => toggle("nested", true)}
+                />
+              </div>
+              <div className="col-span-12 lg:col-span-9 rounded-3xl overflow-hidden shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10">
+                <MeetingTimeline
+                  key={selectedDate.toISOString()}
                   date={selectedDate}
                   selectedMeeting={selectedMeeting}
-                  onMeetingSelect={handleMeetingSelect}
+                  onMeetingSelect={setSelectedMeeting}
+                  highlightedMeetingId={null}
+                  mockMeetings={mockMeetings}
                 />
-              )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-white/70 dark:bg-white/5 backdrop-blur-md rounded-3xl p-6 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10 h-full overflow-hidden">
+              <AnalyticsPage />
+            </div>
+          )}
+        </motion.section>
 
-          {/* Columna 2: Participantes */}
-          <div className="col-span-3 bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 overflow-y-auto">
-            <ParticipantCards 
-              meetingId={selectedMeeting}
-              selectedParticipant={selectedParticipant}
-              onParticipantSelect={setSelectedParticipant}
-            />
-          </div>
+        {/* --- Renderizado de Modales --- */}
+        <ScheduleMeetingModal isOpen={open.schedule} onClose={() => toggle("schedule", false)} />
+        <QuickSimulateModal isOpen={open.simulate} onClose={() => toggle("simulate", false)} />
+        <CallScriptModal isOpen={open.call} onClose={() => toggle("call", false)} />
+        <NestedMeetingsModal isOpen={open.nested} onClose={() => toggle("nested", false)} />
+        
+        {/* --- LÍNEA CORREGIDA: Se añade el componente del agente que faltaba --- */}
+        <AgentCommandPalette isOpen={open.agent} onClose={() => toggle("agent", false)} />
+      </div>
 
-          {/* Columna 3: Información AI */}
-          <div className="col-span-3 bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 overflow-y-auto">
-            <AIInsights 
-              participantId={selectedParticipant}
-            />
-          </div>
-
-          {/* Columna 4: Panel de Acciones */}
-          <div className="col-span-3 bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-white/20 overflow-y-auto">
-            <ActionPanel 
-              participantId={selectedParticipant}
-              meetingId={selectedMeeting}
-            />
-          </div>
-        </div>
+      {/* --- Lógica de Animación para el Botón Flotante --- */}
+      <div className="fixed bottom-6 right-10 md:right-14 z-50">
+        <AnimatePresence>
+          {!open.agent && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="relative"
+            >
+              <motion.div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-gray-800 text-white text-xxs rounded-full shadow-lg whitespace-nowrap">
+                The Agent
+              </motion.div>
+              <Button
+                size="icon"
+                className="rounded-full h-14 w-14 bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-2xl shadow-purple-600/30"
+                onClick={() => toggle("agent", true)}
+              >
+                <Sparkles className="h-7 w-7" />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

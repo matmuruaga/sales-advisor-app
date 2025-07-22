@@ -1,224 +1,320 @@
-import { useState, useEffect } from 'react';
-import { Brain, MessageSquare, FileText, Globe, Linkedin, Twitter } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import {
+  Brain,
+  MessageSquare,
+  FileText,
+  Globe,
+  Linkedin,
+  Twitter,
+  Sparkles,
+  ArrowLeft,
+  Loader2, // loader spinner
+} from 'lucide-react';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
+import { Button } from './ui/button';
+import { AnimatePresence, motion } from 'framer-motion';
 
-// (Aquí irían todas las definiciones de tipos que ya corregimos)
-// ...
+/* ───────────────────────── TYPES ───────────────────────── */
 interface AIInsightsProps {
   participantId: string | null;
 }
-type ParticipantId = 'participant-1' | 'participant-2' | 'participant-3';
-type InsightSectionKey = 'background' | 'companyInfo' | 'sentiment' | 'communicationStyle';
-interface ParticipantInsights {
-  name: string;
-  role: string;
-  company: string;
-  aiScore: number;
-  insights: {
-    background: string;
-    interests: string[];
-    recentActivity: string;
-    companyInfo: string;
-    sentiment: string;
-    dealProbability: number;
-    communicationStyle: string;
-  };
-}
-const mockInsights: Record<string, ParticipantInsights> = {
-    'participant-1': {
+
+type InsightSectionKey =
+  | 'background'
+  | 'companyInfo'
+  | 'sentiment'
+  | 'communicationStyle';
+
+/* ───────────────────────── MOCK DATA ───────────────────────── */
+const mockInsights: Record<string, any> = {
+  'participant-1': {
     name: 'María González',
     role: 'CTO',
     company: 'TechCorp',
-    aiScore: 95,
     insights: {
-      background: 'María González es una experimentada CTO con más de 15 años en el sector tecnológico. Anteriormente trabajó en Google como Senior Engineering Manager y fundó dos startups exitosas. Es reconocida por su liderazgo en transformación digital.',
-      interests: ['Machine Learning', 'Cloud Computing', 'Team Leadership', 'Innovation'],
-      recentActivity: 'Publicó un artículo sobre "El futuro de la IA en las empresas" en LinkedIn hace 3 días',
-      companyInfo: 'TechCorp es una empresa de software empresarial con 500+ empleados, facturación anual de €50M. Recientemente recibió una ronda de Serie C por €25M.',
-      sentiment: 'Muy positivo hacia nuevas tecnologías y colaboraciones estratégicas',
+      background:
+        'CTO con 15 años de experiencia, enfocada en ROI y eficiencia. Es una "early adopter" de tecnología pero escéptica con herramientas que prometen mucho y tienen una implementación compleja.',
+      companyInfo:
+        'TechCorp está optimizando costes y exige ROI < 6 meses en cualquier herramienta nueva.',
+      sentiment:
+        'Muy positiva con nuestra solución, quiere ver detalles de TCO y roadmap.',
+      communicationStyle:
+        'Directa y orientada a datos. Prefiere demos breves con métricas claras.',
+      interests: ['Machine Learning', 'Cloud', 'Innovation'],
+      recentActivity:
+        'Publicó en LinkedIn sobre "IA práctica" y la importancia del ROI.',
       dealProbability: 85,
-      communicationStyle: 'Directa, orientada a datos, prefiere comunicación escrita detallada'
-    }
+    },
   },
-  'participant-2': {
-    name: 'Carlos Ruiz',
-    role: 'Lead Developer',
-    company: 'TechCorp',
-    aiScore: 78,
-    insights: {
-      background: 'Carlos Ruiz es un desarrollador senior especializado en arquitecturas de microservicios. Tiene 8 años de experiencia y es muy activo en la comunidad open source. Mantiene varios proyectos en GitHub con más de 1000 estrellas.',
-      interests: ['Microservices', 'Docker', 'Kubernetes', 'Open Source'],
-      recentActivity: 'Contribuyó a un proyecto de Kubernetes hace 2 días',
-      companyInfo: 'Parte del equipo de arquitectura de TechCorp, reporta directamente a María González',
-      sentiment: 'Positivo hacia herramientas que mejoren la productividad del equipo',
-      dealProbability: 70,
-      communicationStyle: 'Técnico, le gusta profundizar en detalles de implementación'
-    }
-  },
-  'participant-3': {
-    name: 'Ana López',
-    role: 'VP Sales',
-    company: 'ClienteX',
-    aiScore: 88,
-    insights: {
-      background: 'Ana López es una veterana en ventas B2B con más de 12 años de experiencia. Ha liderado equipos de ventas en empresas como Salesforce y HubSpot. Experta en estrategias de account-based marketing.',
-      interests: ['Sales Strategy', 'CRM', 'Marketing Automation', 'Team Management'],
-      recentActivity: 'Compartió insights sobre "Tendencias en ventas B2B 2025" en Twitter',
-      companyInfo: 'ClienteX es una empresa de servicios profesionales con 200 empleados, especializada en consultoría empresarial',
-      sentiment: 'Muy interesada en herramientas que optimicen el proceso de ventas',
-      dealProbability: 92,
-      communicationStyle: 'Orientada a resultados, aprecia ROI claro y casos de éxito'
-    }
-  }
 };
 
+const mockDeepInsights: Record<string, any> = {
+  'participant-1': {
+    sentimentTowardsOurTool:
+      'Positivo. Valora la reducción de costes. Necesita ver pruebas de implementación rápida.',
+    articles: [{ title: 'IA en SaaS', source: 'TechCrunch', url: '#' }],
+    relevantComments: [
+      { text: 'La IA sólo vale si ahorra dinero.', platform: 'LinkedIn' },
+    ],
+    publicPhotos: [
+      'https://images.pexels.com/photos/3763188/pexels-photo-3763188.jpeg?auto=compress&cs=tinysrgb&w=300',
+    ],
+  },
+};
 
+/* ───────────────────────── COMPONENT ───────────────────────── */
 export function AIInsights({ participantId }: AIInsightsProps) {
-  const [animatedText, setAnimatedText] = useState('');
+  /* --- state --- */
+  const [displayText, setDisplayText] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const [currentSection, setCurrentSection] = useState<InsightSectionKey>('background');
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [isDeepResearch, setIsDeepResearch] = useState(false);
 
-  const participant = participantId ? mockInsights[participantId as keyof typeof mockInsights] : null;
+  /* --- refs --- */
+  const textScrollRef = useRef<HTMLDivElement>(null);
 
+  /* --- derived data --- */
+  const participant = participantId ? mockInsights[participantId] : null;
+  const deepInsights = participantId ? mockDeepInsights[participantId] : null;
+
+  /* --- reset view when participant changes --- */
   useEffect(() => {
-    if (participant) {
-      const textToAnimate = participant.insights[currentSection];
-      animateText(textToAnimate);
-    } else {
-        // Clear text when no participant is selected
-        setAnimatedText('');
+    setIsDeepResearch(false);
+    setCurrentSection('background');
+  }, [participantId]);
+
+  /* --- fetch section text (simulated) --- */
+  useEffect(() => {
+    if (!participant || isDeepResearch) return;
+
+    setIsLoading(true);
+    setDisplayText('');
+
+    const timer = setTimeout(() => {
+      const full = participant.insights[currentSection] ?? '';
+      setDisplayText(full);
+      setIsLoading(false);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [participant, currentSection, isDeepResearch]);
+
+  /* --- autoscroll description --- */
+  useEffect(() => {
+    if (!isLoading && textScrollRef.current) {
+      textScrollRef.current.scrollTop = textScrollRef.current.scrollHeight;
     }
-  }, [participant, currentSection]);
+  }, [displayText, isLoading]);
 
-  const animateText = (text: string) => {
-    setIsAnimating(true);
-    setAnimatedText('');
-    let index = 0;
-    const interval = setInterval(() => {
-      if (index < text.length) {
-        setAnimatedText(prev => text.slice(0, index + 1));
-        index++;
-      } else {
-        clearInterval(interval);
-        setIsAnimating(false);
-      }
-    }, 20);
-    return () => clearInterval(interval);
-  };
+  /* --- tabs config --- */
+  const sections: { key: InsightSectionKey; label: string; icon: any }[] = [
+    { key: 'background', label: 'Background', icon: FileText },
+    { key: 'companyInfo', label: 'Empresa', icon: Globe },
+    { key: 'sentiment', label: 'Sentimiento', icon: MessageSquare },
+    { key: 'communicationStyle', label: 'Comunicación', icon: MessageSquare },
+  ];
 
+  /* ───────────────────────── RENDER EARLY (no participant) ───────────────────────── */
   if (!participant) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <Brain className="w-12 h-12 mx-auto mb-3 opacity-30" />
+      <div className="h-full flex flex-col justify-center items-center text-gray-500 py-8">
+        <Brain className="w-12 h-12 mb-3 opacity-30" />
         <p>Selecciona un participante para ver insights de IA</p>
       </div>
     );
   }
 
-  const sections: { key: InsightSectionKey; label: string; icon: React.ElementType }[] = [
-    { key: 'background', label: 'Background', icon: FileText },
-    { key: 'companyInfo', label: 'Empresa', icon: Globe },
-    { key: 'sentiment', label: 'Sentimiento', icon: MessageSquare },
-    { key: 'communicationStyle', label: 'Comunicación', icon: MessageSquare }
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm text-gray-600">AI Insights</h3>
-        <div className="flex items-center space-x-2">
-          <Brain className="w-4 h-4 text-purple-500" />
-          <span className="text-xs text-gray-500">AI Score: {participant.aiScore}%</span>
+  /* ───────────────────────── VIEWS ───────────────────────── */
+  const SummaryView = () => (
+    <div className="h-full flex flex-col">
+      {/* header */}
+      <div className="flex-shrink-0">
+        <div className="inline-flex items-center bg-white/60 rounded-lg px-3 py-1.5 shadow-sm mb-4">
+          <Brain className="w-4 h-4 mr-2 text-purple-600" />
+          <h3 className="text-sm font-medium text-gray-800">AI Insights</h3>
         </div>
       </div>
 
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h4 className="text-sm text-gray-800">{participant.name}</h4>
-            <p className="text-xxs text-gray-600">{participant.role} • {participant.company}</p>
-          </div>
-          <div className="text-right">
-            <div className="text-xxs text-gray-500 mb-1">Deal Probability</div>
-            <div className="flex items-center space-x-2">
-              <Progress value={participant.insights.dealProbability} className="w-12 h-2" />
-              <span className="text-xxs">{participant.insights.dealProbability}%</span>
+      {/* body */}
+      <div className="flex-1 overflow-y-auto min-h-0 pr-2">
+        <Card className="p-4">
+          {/* participant info */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h4 className="text-sm font-medium text-gray-800">
+                {participant.name}
+              </h4>
+              <p className="text-xxs text-gray-600">
+                {participant.role} • {participant.company}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xxs text-gray-500 mb-1">Deal Probability</p>
+              <div className="flex items-center space-x-2">
+                <Progress value={participant.insights.dealProbability} className="w-12 h-2" />
+                <span className="text-xxs">{participant.insights.dealProbability}%</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* --- CORRECCIÓN DE DISEÑO (Botones) ---
-            Añadimos `flex-wrap` para que los botones salten a la siguiente
-            línea si no caben, evitando que se salgan de la tarjeta.
-        */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {sections.map(section => {
-            const Icon = section.icon;
-            return (
-              <button
-                key={section.key}
-                onClick={() => setCurrentSection(section.key)}
-                className={`
-                  px-3 py-1 rounded-full text-xxs transition-all duration-200 flex items-center
-                  ${currentSection === section.key 
-                    ? 'bg-purple-500 text-white' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }
-                `}
-              >
-                <Icon className="w-3 h-3 inline mr-1.5" />
-                {section.label}
-              </button>
-            );
-          })}
-        </div>
+          {/* tabs */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            {sections.map(({ key, label, icon: Icon }) => {
+              const active = currentSection === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setCurrentSection(key)}
+                  className={`px-3 py-1 rounded-full text-xxs flex items-center transition-colors duration-200 ${
+                    active ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Icon className="w-3 h-3 mr-1.5" />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
 
-        <div className="min-h-[120px] mb-4">
-          {/* --- CORRECCIÓN DE DISEÑO (Texto) ---
-              Añadimos `break-words` para forzar el salto de línea en palabras
-              largas y evitar que el texto se desborde.
-          */}
-          <p className="text-xs text-gray-700 leading-relaxed break-words">
-            {animatedText}
-            {isAnimating && <span className="animate-pulse">|</span>}
-          </p>
-        </div>
+          {/* description + loader */}
+          <div className="h-24 mb-4 pr-1 flex items-center justify-center border rounded-lg bg-gray-50/50">
+            <AnimatePresence mode="wait">
+              {isLoading ? (
+                <motion.div key="loader" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="text"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="w-full h-full overflow-y-auto px-2"
+                  ref={textScrollRef}
+                >
+                  <p className="text-xs text-gray-700 leading-relaxed break-words whitespace-pre-wrap">
+                    {displayText}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
-        <div className="space-y-3">
+          {/* interests & recent activity */}
+          <div className="space-y-3">
+            <div>
+              <h5 className="text-xs font-semibold text-gray-600 mb-1">Intereses</h5>
+              <div className="flex flex-wrap gap-1">
+                {participant.insights.interests?.map((int: string) => (
+                  <Badge key={int} variant="outline" className="text-xxs">
+                    {int}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h5 className="text-xs font-semibold text-gray-600 mb-1">Actividad reciente</h5>
+              <p className="text-xs text-gray-700 break-words">
+                {participant.insights.recentActivity}
+              </p>
+            </div>
+            {/* socials */}
+            <div className="flex items-center space-x-4 pt-3 border-t">
+              <div className="flex items-center space-x-1">
+                <Linkedin className="w-4 h-4 text-blue-600" />
+                <span className="text-xs text-gray-500">LinkedIn</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Twitter className="w-4 h-4 text-blue-400" />
+                <span className="text-xs text-gray-500">Twitter</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Globe className="w-4 h-4 text-gray-600" />
+                <span className="text-xs text-gray-500">Website</span>
+              </div>
+            </div>
+          </div>
+
+          {/* CTA deep research */}
+          <div className="mt-4 border-t pt-4">
+            <Button
+              className="w-full h-10 bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg hover:shadow-purple-500/20 transition-shadow"
+              onClick={() => setIsDeepResearch(true)}
+              disabled={!deepInsights}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Investigación profunda
+            </Button>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+
+  const DeepResearchView = () => (
+    <div className="h-full flex flex-col">
+      <div className="flex-shrink-0 mb-2">
+        <Button variant="ghost" size="sm" className="h-auto px-2 py-1 text-xs" onClick={() => setIsDeepResearch(false)}>
+          <ArrowLeft className="w-4 h-4 mr-1" /> Volver a resumen
+        </Button>
+      </div>
+      <div className="flex-1 overflow-y-auto min-h-0 pr-2">
+        <Card className="p-4 bg-white/80 backdrop-blur-sm border-white/30 space-y-5">
+          <h4 className="text-sm font-bold text-gray-800 mb-2">Investigación profunda — {participant.name}</h4>
           <div>
-            <h5 className="text-xs text-gray-600 mb-2">Intereses</h5>
-            <div className="flex flex-wrap gap-1">
-              {participant.insights.interests.map((interest, index) => (
-                <Badge key={index} variant="outline" className="text-xxs">
-                  {interest}
-                </Badge>
+            <h5 className="text-xs text-purple-700 font-semibold mb-1">Sentimiento hacia herramientas similares</h5>
+            <p className="text-xs bg-purple-50 p-3 rounded-lg leading-relaxed text-gray-700">
+              {deepInsights?.sentimentTowardsOurTool}
+            </p>
+          </div>
+          <div>
+            <h5 className="text-xs font-semibold text-gray-600 mb-1">Artículos y menciones</h5>
+            <ul className="list-disc list-inside space-y-2">
+              {deepInsights?.articles.map((a: any, i: number) => (
+                <li key={i} className="text-xs">
+                  <a href={a.url} className="text-blue-600 hover:underline">{a.title}</a> <span className="text-gray-400">- {a.source}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h5 className="text-xs font-semibold text-gray-600 mb-1">Comentarios relevantes</h5>
+            <div className="space-y-2">
+              {deepInsights?.relevantComments.map((c: any, i: number) => (
+                <blockquote key={i} className="text-xs bg-gray-50 p-2 border-l-2 border-gray-200 rounded-r-lg text-gray-700">
+                  {c.text} <span className="text-gray-400">- {c.platform}</span>
+                </blockquote>
               ))}
             </div>
           </div>
-
           <div>
-            <h5 className="text-xs text-gray-600 mb-1">Actividad Reciente</h5>
-            <p className="text-xs text-gray-700 break-words">{participant.insights.recentActivity}</p>
+            <h5 className="text-xs font-semibold text-gray-600 mb-1">Fotos públicas</h5>
+            <div className="flex space-x-2">
+              {deepInsights?.publicPhotos.map((url: string, i: number) => (
+                <img key={i} src={url} alt="public" className="w-16 h-16 object-cover rounded-lg shadow-sm" />
+              ))}
+            </div>
           </div>
+        </Card>
+      </div>
+    </div>
+  );
 
-          <div className="flex items-center space-x-4 pt-3 border-t">
-            <div className="flex items-center space-x-1">
-              <Linkedin className="w-4 h-4 text-blue-600" />
-              <span className="text-xs text-gray-500">LinkedIn</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Twitter className="w-4 h-4 text-blue-400" />
-              <span className="text-xs text-gray-500">Twitter</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Globe className="w-4 h-4 text-gray-600" />
-              <span className="text-xs text-gray-500">Website</span>
-            </div>
-          </div>
-        </div>
-      </Card>
+  /* ───────────────────────── MAIN RENDER ───────────────────────── */
+  return (
+    <div className="w-full h-full">
+      <AnimatePresence mode="wait">
+        {!isDeepResearch ? (
+          <motion.div key="summary" exit={{ opacity: 0, x: -50 }} className="h-full">
+            <SummaryView />
+          </motion.div>
+        ) : (
+          <motion.div key="deep" initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} className="h-full">
+            <DeepResearchView />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

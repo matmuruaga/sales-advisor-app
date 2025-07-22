@@ -1,4 +1,4 @@
-import { Building, MapPin, Star } from 'lucide-react';
+import { Building, MapPin, Star, Users } from 'lucide-react';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -203,74 +203,66 @@ export function ParticipantCards({ meetingId, selectedParticipant, onParticipant
     );
   }
 
-  return (
+   return (
     <div className="space-y-4">
-      <h3 className="text-sm text-gray-600 mb-4">
-        Participantes ({participants.length})
-      </h3>
+      {/* --- TÍTULO ACTUALIZADO --- */}
+       <div className="inline-flex items-center bg-white/60 rounded-lg px-3 py-1.5 shadow-sm">
+        <Users className="w-4 h-4 mr-2 text-purple-600" />
+        <h3 className="text-sm font-medium text-gray-800">
+            Participantes ({participants.length})
+        </h3>
+    </div>
       
       {participants.map((participant) => {
         const isSelected = selectedParticipant === participant.id;
         
         return (
-          <Card
+         <div
             key={participant.id}
             className={`
-              p-4 cursor-pointer transition-all duration-200 hover:shadow-md
-              ${isSelected ? 'ring-2 ring-purple-500 bg-purple-50' : 'hover:bg-gray-50'}
+              rounded-xl transition-all duration-200
+              ${isSelected ? 'bg-gradient-to-br from-blue-400 to-cyan-400 p-px' : ''}
             `}
-            onClick={() => onParticipantSelect(participant.id)}
           >
-            <div className="flex items-start space-x-3">
-              <Avatar className="w-12 h-12">
-                <AvatarImage src={participant.avatar} alt={participant.name} />
-                <AvatarFallback>
-                  {participant.name.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h4 className="text-sm text-gray-800">{participant.name}</h4>
-                    <p className="text-xs text-gray-600">{participant.role}</p>
+            <Card
+              className="p-4 cursor-pointer w-full h-full bg-white hover:shadow-md"
+              onClick={() => onParticipantSelect(participant.id)}
+            >
+              <div className="flex items-start space-x-3">
+                <Avatar className="w-12 h-12">
+                  <AvatarImage src={participant.avatar} alt={participant.name} />
+                  <AvatarFallback>
+                    {participant.name.split(' ').map(n => n[0]).join('')}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h4 className="text-sm text-gray-800">{participant.name}</h4>
+                      <p className="text-xs text-gray-600">{participant.role}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-1 mb-2">
+                    <Building className="w-3 h-3 text-gray-400" />
+                    <span className="text-xs text-gray-600">{participant.company}</span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-1 mb-3">
+                    <MapPin className="w-3 h-3 text-gray-400" />
+                    <span className="text-xs text-gray-600">{participant.location}</span>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-1">
+                    <Badge variant="outline" className={`text-xxs ${levelColors[participant.level]}`}>{participant.level}</Badge>
+                    <Badge variant="outline" className={`text-xxs ${engagementColors[participant.engagement]}`}>{participant.engagement}</Badge>
+                    <Badge variant="outline" className={`text-xxs ${priorityColors[participant.priority]}`}>{participant.priority}</Badge>
                   </div>
                 </div>
-                
-                <div className="flex items-center space-x-1 mb-2">
-                  <Building className="w-3 h-3 text-gray-400" />
-                  <span className="text-xs text-gray-600">{participant.company}</span>
-                </div>
-                
-                <div className="flex items-center space-x-1 mb-3">
-                  <MapPin className="w-3 h-3 text-gray-400" />
-                  <span className="text-xs text-gray-600">{participant.location}</span>
-                </div>
-                
-                <div className="flex flex-wrap gap-1">
-                  {/* Accessing color objects with typed keys is now safe */}
-                  <Badge 
-                    variant="outline" 
-                    className={`text-xxs ${levelColors[participant.level]}`}
-                  >
-                    {participant.level}
-                  </Badge>
-                  <Badge 
-                    variant="outline" 
-                    className={`text-xxs ${engagementColors[participant.engagement]}`}
-                  >
-                    {participant.engagement}
-                  </Badge>
-                  <Badge 
-                    variant="outline" 
-                    className={`text-xxs ${priorityColors[participant.priority]}`}
-                  >
-                    {participant.priority}
-                  </Badge>
-                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          </div>
         );
       })}
     </div>
