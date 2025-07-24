@@ -11,40 +11,41 @@ interface ConversationSimulatorProps {
   onClose: () => void;
 }
 
-// --- ESTRUCTURA DE DATOS REFINADA PARA EL GUION ---
+/* --- REFINED DATA STRUCTURE FOR THE SCRIPT --- */
 const conversationScript = [
   {
     userMessage:
-      "Hola María, gracias por tu tiempo. Por cierto, vi tu post en LinkedIn sobre la importancia de la IA práctica. Me pareció muy acertado.",
+      "Hi María, thanks for your time. By the way, I saw your LinkedIn post about the importance of practical AI—really insightful.",
     aiResponse:
-      "¡Gracias por leerlo! Sí, creo que hay mucho humo en el mercado. Me interesa ver soluciones que funcionen de verdad.",
+      "Thanks for reading! Yes, I think there’s a lot of hype in the market. I’m interested in seeing solutions that actually work.",
   },
   {
     userMessage:
-      "Totalmente de acuerdo. Por eso quería mostrarte rápidamente el caso de Innovate Inc. Lograron reducir el tiempo de preparación de sus reuniones en un 40% en el primer trimestre.",
+      "Completely agree. That’s why I wanted to quickly show you the Innovate Inc. case. They reduced meeting-prep time by 40 % in Q1.",
     aiResponse:
-      "Interesante. Pero, ¿cuál es el coste real de implementar algo así? Me preocupa la complejidad y el coste total de propiedad (TCO).",
+      "Interesting. But what’s the real cost of implementing something like this? I’m worried about complexity and total cost of ownership (TCO).",
   },
   {
     userMessage:
-      "Excelente pregunta. Nuestra arquitectura está diseñada para una integración API en minutos. El coste se justifica con el ahorro en horas de ingeniería y la mejora en la tasa de cierre, generando un ROI positivo en menos de 6 meses.",
+      "Great question. Our architecture lets you integrate via API in minutes. Savings in engineering hours and higher close rates bring positive ROI in under 6 months.",
     aiResponse:
-      "Entendido. Me gustaría ver una demo técnica enfocada en la API la próxima semana.",
+      "Understood. I’d like to see a technical demo focused on the API next week.",
   },
 ];
 
 const scriptPoints = [
   {
-    title: "Punto Clave 1: Romper el Hielo",
-    content: "Menciona su post reciente en LinkedIn sobre \"IA práctica\".",
+    title: "Key Point 1: Break the Ice",
+    content: 'Mention her recent LinkedIn post about “practical AI”.',
   },
   {
-    title: "Punto Clave 2: Abordar el Escepticismo",
-    content: "Presenta el caso de estudio de \"Innovate Inc.\" proactivamente.",
+    title: "Key Point 2: Address Skepticism",
+    content: 'Proactively present the “Innovate Inc.” case study.',
   },
   {
-    title: "Objeción Probable: Coste y Complejidad",
-    content: "La respuesta debe enfocarse en la rapidez de implementación y el ROI.",
+    title: "Likely Objection: Cost & Complexity",
+    content:
+      "Response should focus on quick implementation and clear ROI.",
   },
 ];
 
@@ -59,11 +60,12 @@ export function ConversationSimulator({
   const [inputValue, setInputValue] = useState("");
   const [isAiTyping, setIsAiTyping] = useState(false);
 
-  // Inicia la conversación y pre-rellena el primer mensaje del usuario
+  /* Pre-fill first user line when the modal opens */
   useEffect(() => {
     setInputValue(conversationScript[0].userMessage);
   }, []);
 
+  /* Handle send & mock AI reply */
   const handleSend = () => {
     if (currentStep >= conversationScript.length) return;
 
@@ -71,7 +73,6 @@ export function ConversationSimulator({
     setMessages((prev) => [...prev, userMsg]);
     setIsAiTyping(true);
 
-    // Simula la respuesta de la IA
     setTimeout(() => {
       const aiMsg = {
         sender: "ai_client" as const,
@@ -79,15 +80,15 @@ export function ConversationSimulator({
       };
       setMessages((prev) => [...prev, aiMsg]);
 
-      const nextStep = currentStep + 1;
-      if (nextStep < conversationScript.length) {
-        setInputValue(conversationScript[nextStep].userMessage);
+      const next = currentStep + 1;
+      if (next < conversationScript.length) {
+        setInputValue(conversationScript[next].userMessage);
       } else {
-        setInputValue("Simulación completada.");
+        setInputValue("Simulation completed.");
       }
-      setCurrentStep(nextStep);
+      setCurrentStep(next);
       setIsAiTyping(false);
-    }, 1500); // Retardo para simular que la IA "piensa"
+    }, 1500); // simulate “thinking” delay
   };
 
   const clientInitials = participantName
@@ -115,9 +116,9 @@ export function ConversationSimulator({
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="flex items-center space-x-2">
               <Sparkles className="w-5 h-5 text-purple-600" />
-              <CardTitle>Simulador de Conversación</CardTitle>
+              <CardTitle>Conversation Simulator</CardTitle>
               <Button variant="outline" size="sm">
-                Simular video llamada
+                Simulate video call
               </Button>
             </div>
             <Button
@@ -131,10 +132,10 @@ export function ConversationSimulator({
           </CardHeader>
 
           <CardContent className="flex-1 grid grid-cols-12 gap-6 overflow-hidden min-h-0">
-            {/* Columna Izquierda: Guion */}
+            {/* Left Column: Script */}
             <div className="col-span-4 h-full overflow-y-auto pr-2">
               <h4 className="text-sm font-semibold text-gray-800 mb-3">
-                Guion Estratégico IA
+                AI Strategic Script
               </h4>
               <div className="space-y-4">
                 {scriptPoints.map((point, index) => (
@@ -153,9 +154,9 @@ export function ConversationSimulator({
               </div>
             </div>
 
-            {/* Columna Derecha: Simulación de Chat */}
+            {/* Right Column: Chat Simulation */}
             <div className="col-span-8 h-full flex flex-col bg-gray-100/70 rounded-lg min-h-0">
-              {/* Área de mensajes (scroll) */}
+              {/* Messages area */}
               <div className="flex-1 p-4 space-y-4 overflow-y-auto">
                 <AnimatePresence>
                   {messages.map((msg, index) => (
@@ -186,7 +187,7 @@ export function ConversationSimulator({
                       </div>
                       {msg.sender === "user" && (
                         <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xxs">YO</AvatarFallback>
+                          <AvatarFallback className="text-xxs">ME</AvatarFallback>
                         </Avatar>
                       )}
                     </motion.div>
@@ -204,9 +205,9 @@ export function ConversationSimulator({
                       </Avatar>
                       <div className="max-w-[70%] p-2 rounded-lg text-xs bg-white text-gray-800 rounded-bl-none border">
                         <div className="flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]"></span>
-                          <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]"></span>
-                          <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-pulse"></span>
+                          <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.3s]" />
+                          <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-pulse [animation-delay:-0.15s]" />
+                          <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-pulse" />
                         </div>
                       </div>
                     </motion.div>
@@ -214,19 +215,21 @@ export function ConversationSimulator({
                 </AnimatePresence>
               </div>
 
-              {/* Barra de entrada fija */}
+              {/* Fixed input bar */}
               <div className="p-2 border-t bg-white/50 rounded-b-lg">
                 <div className="flex items-center gap-2">
                   <Input
                     type="text"
-                    placeholder="Escribe tu respuesta..."
+                    placeholder="Type your response..."
                     value={inputValue}
-                    readOnly // El usuario no puede escribir, solo enviar el texto predefinido
+                    readOnly /* user can’t type, only send predefined text */
                     className="flex-1 bg-white"
                   />
                   <Button
                     onClick={handleSend}
-                    disabled={isAiTyping || currentStep >= conversationScript.length}
+                    disabled={
+                      isAiTyping || currentStep >= conversationScript.length
+                    }
                   >
                     <Send className="w-4 h-4" />
                   </Button>

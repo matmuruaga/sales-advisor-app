@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -10,41 +10,41 @@ import {
   Bot,
   CheckCircle,
   Mail,
-} from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
-import { Checkbox } from './ui/checkbox';
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { Checkbox } from "./ui/checkbox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select';
-import { Badge } from './ui/badge';
+} from "./ui/select";
+import { Badge } from "./ui/badge";
 
 interface ScheduleMeetingModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-// Datos simulados para el selector de leads y la IA
+// Mock data for lead selector & AI
 const mockLeads = [
   {
-    id: 'participant-1',
-    name: 'María González (TechCorp)',
-    email: 'maria.gonzalez@techcorp.com',
+    id: "participant-1",
+    name: "María González (TechCorp)",
+    email: "maria.gonzalez@techcorp.com",
   },
   {
-    id: 'participant-3',
-    name: 'Ana López (ClienteX)',
-    email: 'ana.lopez@clientex.com',
+    id: "participant-3",
+    name: "Ana López (ClientX)",
+    email: "ana.lopez@clientx.com",
   },
   {
-    id: 'participant-7',
-    name: 'Elena Pérez (StartupABC)',
-    email: 'elena.perez@startupabc.com',
+    id: "participant-7",
+    name: "Elena Pérez (StartupABC)",
+    email: "elena.perez@startupabc.com",
   },
 ];
 
@@ -52,18 +52,20 @@ export function ScheduleMeetingModal({
   isOpen,
   onClose,
 }: ScheduleMeetingModalProps) {
-  /* ───────────── Estado básico existente ───────────── */
-  const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
+  /* ───────────── Existing basic state ───────────── */
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
 
-  /* ───────────── Nuevo estado ───────────── */
-  const [selectedLeadId, setSelectedLeadId] = useState('');
-  const [email, setEmail] = useState('');
+  /* ───────────── New state ───────────── */
+  const [selectedLeadId, setSelectedLeadId] = useState("");
+  const [email, setEmail] = useState("");
   const [isEmailValid, setIsEmailValid] = useState(false);
   const [isManualEntry, setIsManualEntry] = useState(false);
-  const [scheduleOption, setScheduleOption] = useState<'now' | 'schedule'>('now');
+  const [scheduleOption, setScheduleOption] = useState<"now" | "schedule">(
+    "now"
+  );
 
-  /* ───────────── Validación de email ───────────── */
+  /* ───────────── Email validation ───────────── */
   useEffect(() => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     setIsEmailValid(emailRegex.test(email));
@@ -77,26 +79,26 @@ export function ScheduleMeetingModal({
       setEmail(lead.email);
       setIsManualEntry(false);
     } else {
-      setEmail('');
+      setEmail("");
       setIsManualEntry(true);
     }
   };
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
-    // Si el usuario edita el email manualmente, deseleccionamos lead
-    if (selectedLeadId) setSelectedLeadId('');
+    // If the user edits the email manually, unselect the lead
+    if (selectedLeadId) setSelectedLeadId("");
     setIsManualEntry(true);
   };
 
   const handleGenerateAI = () => {
-    setSubject('Demostración de Solución IA y Sinergias');
+    setSubject("AI Solution Demo & Synergies");
     setBody(
-      'Hola,\n\nSiguiendo nuestra conversación, me gustaría agendar una breve sesión para mostrarte cómo nuestra plataforma puede integrarse con vuestro stack actual y generar un ROI significativo.\n\nHe visto tu interés en la IA práctica y estoy seguro de que encontrarás valor en nuestro enfoque.\n\n¿Alguno de los horarios sugeridos te viene bien?\n\nSaludos,'
+      "Hi,\n\nFollowing our conversation, I’d like to schedule a brief session to show how our platform can integrate with your current stack and generate significant ROI.\n\nI noticed your interest in practical AI, and I’m confident you’ll find value in our approach.\n\nDo any of the suggested times work for you?\n\nBest regards,"
     );
   };
 
-  /* ───────────── Early return si modal cerrado ───────────── */
+  /* ───────────── Early return if modal is closed ───────────── */
   if (!isOpen) return null;
 
   /* ───────────── Render ───────────── */
@@ -112,31 +114,38 @@ export function ScheduleMeetingModal({
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ duration: 0.3, ease: 'easeInOut' }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
         className="relative w-full max-w-2xl bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-white/20"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6">
-          {/* Encabezado */}
+          {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800 flex items-center">
               <CalendarIcon className="w-5 h-5 mr-2 text-purple-600" />
-              Agendar Nueva Reunión
+              Schedule New Meeting
             </h2>
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8"
+            >
               <X className="w-4 h-4" />
             </Button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            {/* ───── Columna Izquierda ───── */}
+            {/* ───── Left Column ───── */}
             <div className="space-y-4">
               {/* Lead */}
               <div>
-                <label className="text-xs font-medium text-gray-600">Lead</label>
+                <label className="text-xs font-medium text-gray-600">
+                  Lead
+                </label>
                 <Select onValueChange={handleLeadChange} value={selectedLeadId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar un contacto..." />
+                    <SelectValue placeholder="Select a contact..." />
                   </SelectTrigger>
                   <SelectContent>
                     {mockLeads.map((lead) => (
@@ -151,12 +160,12 @@ export function ScheduleMeetingModal({
               {/* Email */}
               <div>
                 <label className="text-xs font-medium text-gray-600 flex items-center">
-                  <Mail className="w-3 h-3 mr-1" /> Email del Invitado
+                  <Mail className="w-3 h-3 mr-1" /> Guest Email
                 </label>
                 <div className="relative mt-1">
                   <Input
                     type="email"
-                    placeholder="ejemplo@dominio.com"
+                    placeholder="example@domain.com"
                     value={email}
                     onChange={handleEmailChange}
                   />
@@ -166,57 +175,66 @@ export function ScheduleMeetingModal({
                 </div>
               </div>
 
-              {/* Crear nuevo lead */}
+              {/* Create new lead */}
               {isManualEntry && isEmailValid && (
                 <div className="flex items-center space-x-2 pt-1">
                   <Checkbox id="createLead" />
-                  <label htmlFor="createLead" className="text-xs font-medium">
-                    Crear nuevo lead con este email
+                  <label
+                    htmlFor="createLead"
+                    className="text-xs font-medium"
+                  >
+                    Create new lead with this email
                   </label>
                 </div>
               )}
 
-              {/* Tipo de reunión */}
+              {/* Meeting type */}
               <div>
-                <label className="text-xs font-medium text-gray-600">Tipo de Reunión</label>
-                <Select defaultValue="oportunidad">
+                <label className="text-xs font-medium text-gray-600">
+                  Meeting Type
+                </label>
+                <Select defaultValue="opportunity">
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="oportunidad">Oportunidad</SelectItem>
-                    <SelectItem value="follow-up">Follow‑up</SelectItem>
+                    <SelectItem value="opportunity">Opportunity</SelectItem>
+                    <SelectItem value="follow-up">Follow-up</SelectItem>
                     <SelectItem value="discovery">Discovery</SelectItem>
-                    <SelectItem value="cierre">Cierre</SelectItem>
+                    <SelectItem value="closing">Closing</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Programar envío */}
+              {/* Send / Schedule */}
               <div>
-                <label className="text-xs font-medium text-gray-600">Envío</label>
+                <label className="text-xs font-medium text-gray-600">
+                  Send
+                </label>
                 <div className="flex items-center gap-2 mt-1">
                   <Button
-                    variant={scheduleOption === 'now' ? 'default' : 'outline'}
+                    variant={scheduleOption === "now" ? "default" : "outline"}
                     size="sm"
                     className="flex-1"
-                    onClick={() => setScheduleOption('now')}
+                    onClick={() => setScheduleOption("now")}
                   >
-                    Enviar ahora
+                    Send now
                   </Button>
                   <Button
-                    variant={scheduleOption === 'schedule' ? 'default' : 'outline'}
+                    variant={
+                      scheduleOption === "schedule" ? "default" : "outline"
+                    }
                     size="sm"
                     className="flex-1"
-                    onClick={() => setScheduleOption('schedule')}
+                    onClick={() => setScheduleOption("schedule")}
                   >
-                    Programar
+                    Schedule
                   </Button>
                 </div>
-                {scheduleOption === 'schedule' && (
+                {scheduleOption === "schedule" && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
+                    animate={{ opacity: 1, height: "auto" }}
                     className="mt-2"
                   >
                     <Input type="datetime-local" />
@@ -225,32 +243,35 @@ export function ScheduleMeetingModal({
               </div>
             </div>
 
-            {/* ───── Columna Derecha ───── */}
+            {/* ───── Right Column ───── */}
             <div className="space-y-2">
-              {/* Asunto */}
+              {/* Subject */}
               <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-gray-600">Asunto</label>
+                <label className="text-xs font-medium text-gray-600">
+                  Subject
+                </label>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-auto text-xxs px-2 py-0.5"
                   onClick={handleGenerateAI}
                 >
-                  <Sparkles className="w-3 h-3 mr-1 text-purple-500" /> Generar con IA
+                  <Sparkles className="w-3 h-3 mr-1 text-purple-500" />{" "}
+                  Generate with AI
                 </Button>
               </div>
               <Input
-                placeholder="Asunto del email..."
+                placeholder="Email subject..."
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
               />
 
-              {/* Cuerpo */}
+              {/* Body */}
               <label className="text-xs font-medium text-gray-600 pt-2 block">
-                Cuerpo del mensaje
+                Message body
               </label>
               <Textarea
-                placeholder="Cuerpo del email de invitación..."
+                placeholder="Invitation email body..."
                 className="h-28"
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -258,30 +279,30 @@ export function ScheduleMeetingModal({
             </div>
           </div>
 
-          {/* Opciones avanzadas y acciones */}
+          {/* Advanced options & actions */}
           <div className="mt-6 pt-4 border-t">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
               <div className="space-y-2 mb-4 md:mb-0">
                 <div className="flex items-center space-x-2">
                   <Checkbox id="briefing" />
                   <label htmlFor="briefing" className="text-xs font-medium">
-                    Incluir briefing IA para asistentes internos
+                    Include AI briefing for internal attendees
                   </label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox id="followup" />
                   <label htmlFor="followup" className="text-xs font-medium">
-                    Activar secuencia de seguimiento automática
+                    Enable automatic follow-up sequence
                   </label>
                 </div>
               </div>
 
               <div className="flex space-x-2 self-end">
                 <Button variant="ghost" onClick={onClose}>
-                  Cancelar
+                  Cancel
                 </Button>
                 <Button className="bg-purple-600 hover:bg-purple-700">
-                  Agendar y Enviar
+                  Schedule &amp; Send
                 </Button>
               </div>
             </div>

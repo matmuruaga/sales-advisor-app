@@ -18,19 +18,19 @@ const mockMeetings: Record<string, any[]> = {
   "2025-07-17": [
     {
       id: "meeting-1",
-      title: "Demo Producto – TechCorp",
-      description: "Presentación de solución para equipo de desarrollo",
+      title: "Product Demo – TechCorp",
+      description: "Solution presentation for the development team",
       time: "10:00",
       dateTime: "2025-07-17T10:00:00",
       duration: "45",
       platform: "google-meet",
-      type: "oportunidad",
+      type: "opportunity",
       participants: ["participant-1", "participant-2"],
     },
     {
       id: "meeting-2",
-      title: "Follow‑up ClienteX",
-      description: "Revisión de propuesta y próximos pasos",
+      title: "ClientX Follow-Up",
+      description: "Proposal review and next steps",
       time: "15:00",
       dateTime: "2025-07-17T15:00:00",
       duration: "30",
@@ -43,7 +43,7 @@ const mockMeetings: Record<string, any[]> = {
     {
       id: "meeting-3",
       title: "Weekly Sales Review",
-      description: "Revisión semanal de pipeline y métricas",
+      description: "Weekly review of pipeline and metrics",
       time: "09:00",
       dateTime: "2025-07-18T09:00:00",
       duration: "60",
@@ -118,17 +118,17 @@ export default function HomePage() {
           )}
         </motion.section>
 
-        {/* --- Renderizado de Modales --- */}
+        {/* --- Modal Rendering --- */}
         <ScheduleMeetingModal isOpen={open.schedule} onClose={() => toggle("schedule", false)} />
         <QuickSimulateModal isOpen={open.simulate} onClose={() => toggle("simulate", false)} />
         <CallScriptModal isOpen={open.call} onClose={() => toggle("call", false)} />
         <NestedMeetingsModal isOpen={open.nested} onClose={() => toggle("nested", false)} />
         
-        {/* --- LÍNEA CORREGIDA: Se añade el componente del agente que faltaba --- */}
+        {/* --- FIXED LINE: Added missing agent component --- */}
         <AgentCommandPalette isOpen={open.agent} onClose={() => toggle("agent", false)} />
       </div>
 
-      {/* --- Lógica de Animación para el Botón Flotante --- */}
+      {/* --- Animation Logic for Floating Button --- */}
       <div className="fixed bottom-6 right-10 md:right-14 z-50">
         <AnimatePresence>
           {!open.agent && (
