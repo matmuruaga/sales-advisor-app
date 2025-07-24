@@ -1,8 +1,11 @@
+import { useState } from 'react';
 import {
   Users,
   Target,
   Brain,
   PlusCircle,
+  Sparkles,
+  HelpCircle,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -17,18 +20,19 @@ import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
 import { Slider } from './ui/slider';
 import { Badge } from './ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 
-/* --- MOCK DATA (could be passed as props) --- */
+/* -------- Mock data (unchanged) -------- */
 const mockLeads = [
   { id: 'participant-1', name: 'María González (CTO, TechCorp)' },
   { id: 'participant-3', name: 'Ana López (VP Sales, ClientX)' },
   { id: 'participant-7', name: 'Elena Pérez (CEO, StartupABC)' },
 ];
+
 const simulationGoals = [
   { id: 'discovery', label: 'Discovery Call' },
   { id: 'demo', label: 'Schedule a Demo' },
   { id: 'pricing', label: 'Handle Pricing Objections' },
-  { id: 'negotiation', label: 'Negotiation & Closing' },
 ];
 
 const temperatureLabels = [
@@ -48,14 +52,15 @@ const temperatureLabels = [
   'Confrontational',
   'Hostile',
 ];
+
 const predefinedPersonalities = [
-  { id: 'data_driven', label: 'Data-driven' },
-  { id: 'relational', label: 'Relationship-oriented' },
-  { id: 'budget_conscious', label: 'Budget-conscious' },
+  { id: 'data_driven', label: 'Data-Driven' },
+  { id: 'relational', label: 'Relationship-Oriented' },
+  { id: 'budget_conscious', label: 'Budget-Conscious' },
   { id: 'innovator', label: 'Innovator / Early Adopter' },
 ];
 
-/* --- COMPONENT PROPS --- */
+/* -------- Component props -------- */
 interface SimulationConfigProps {
   config: {
     leadSource: 'existing' | 'new';
@@ -69,11 +74,12 @@ interface SimulationConfigProps {
     technicality: number;
     riskAversion: number;
     formality: number;
+    initialContext: string;
   };
   setConfig: (config: SimulationConfigProps['config']) => void;
 }
 
-/* --- REUSABLE SLIDER SUB-COMPONENT --- */
+/* -------- Reusable slider sub-component -------- */
 const PersonalitySlider = ({
   label,
   value,
@@ -104,30 +110,43 @@ const PersonalitySlider = ({
   </div>
 );
 
+/* ================= Main component ================ */
 export function SimulationConfig({ config, setConfig }: SimulationConfigProps) {
   const updateConfig = (
     key: keyof SimulationConfigProps['config'],
     value: any,
-  ) => {
-    setConfig({ ...config, [key]: value });
-  };
+  ) => setConfig({ ...config, [key]: value });
 
   const togglePersonality = (id: string) => {
-    const newPersonalities = config.selectedPersonalities.includes(id)
+    const list = config.selectedPersonalities.includes(id)
       ? config.selectedPersonalities.filter((p) => p !== id)
       : [...config.selectedPersonalities, id];
-    updateConfig('selectedPersonalities', newPersonalities);
+    updateConfig('selectedPersonalities', list);
+  };
+
+  /* ------- “Enrich with AI” button action ------- */
+  const handleEnrichAI = () => {
+    const leadName = config.selectedLeadId
+      ? mockLeads.find((l) => l.id === config.selectedLeadId)?.name
+      : 'this prospect';
+
+    const enrichedContext = `AI-generated context for the upcoming call with ${leadName}. In our most recent interaction—an email exchange three days ago—the tone was distinctly positive. ${leadName} highlighted our Innovate Inc. case study as “exactly the ROI story the board needs.” Evaluation hinges on (1) rapid implementation with minimal DevOps effort and (2) measurable ROI within two quarters.
+
+Background research shows ${leadName} is leading a wider digital-efficiency program. Public posts reveal pain points: repetitive manual workflows and poor data visibility. A PoC budget is earmarked for Q3, contingent on a six-month payback and seamless integration with HubSpot and Tableau. Competitors AlphaFlow and SyncWare have longer onboarding timelines—a weakness we can exploit.
+
+**Call objective:** Secure a 30-minute technical demo next week with the buying committee (CTO, VP Sales, RevOps Lead). Be ready to (a) demo a live integration in under five minutes, (b) quantify time saved per rep, and (c) outline a lightweight pilot that meets ROI targets by Q2. Send a tailored ROI calculator and technical checklist immediately after the meeting.`;
+    updateConfig('initialContext', enrichedContext);
   };
 
   return (
     <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 overflow-y-auto pr-3">
-      {/* --- Left Column: Main Parameters --- */}
+      {/* -------- Left column: main parameters -------- */}
       <Card className="bg-transparent border-0 shadow-none">
         <CardHeader>
           <CardTitle className="text-base">Main Parameters</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Lead Source */}
+          {/* Lead source */}
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 flex items-center">
               Lead Source
@@ -154,14 +173,14 @@ export function SimulationConfig({ config, setConfig }: SimulationConfigProps) {
             </div>
           </div>
 
-          {/* Lead or Prospect Name */}
+          {/* Lead selector / Prospect name */}
           {config.leadSource === 'existing' ? (
             <div>
               <label className="text-xs font-medium text-gray-600">
                 Lead to Simulate
               </label>
               <Select
-                onValueChange={(value) => updateConfig('selectedLeadId', value)}
+                onValueChange={(v) => updateConfig('selectedLeadId', v)}
                 value={config.selectedLeadId}
               >
                 <SelectTrigger>
@@ -191,13 +210,13 @@ export function SimulationConfig({ config, setConfig }: SimulationConfigProps) {
             </div>
           )}
 
-          {/* Call Goal */}
+          {/* Call goal */}
           <div>
             <label className="text-xs font-medium text-gray-600">
               Call Goal
             </label>
             <Select
-              onValueChange={(value) => updateConfig('selectedGoal', value)}
+              onValueChange={(v) => updateConfig('selectedGoal', v)}
               value={config.selectedGoal}
             >
               <SelectTrigger>
@@ -213,20 +232,52 @@ export function SimulationConfig({ config, setConfig }: SimulationConfigProps) {
             </Select>
           </div>
 
-          {/* Initial Context */}
+          {/* Initial context + AI enrich button */}
           <div>
             <label className="text-xs font-medium text-gray-600">
               Initial Context
             </label>
             <Textarea
-              placeholder="e.g. 'Follow-up call after demo...'"
-              rows={2}
+              placeholder="e.g. 'Follow-up call after webinar…'"
+              rows={3}
+              value={config.initialContext}
+              onChange={(e) => updateConfig('initialContext', e.target.value)}
             />
+
+            <div className="mt-2 flex items-center gap-2">
+              {/* Gradient-border button */}
+              <div className="flex-grow rounded-lg bg-gradient-to-br from-purple-300 to-blue-200 p-px shadow-sm hover:shadow-md transition-shadow">
+                <Button
+                  variant="outline"
+                  className="w-full h-full bg-transparent"
+                  onClick={handleEnrichAI}
+                >
+                  <Sparkles className="w-4 h-4 mr-2 text-purple-500" />
+                  Enrich with AI
+                </Button>
+              </div>
+
+              {/* Help pop-over */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <HelpCircle className="w-4 h-4 text-gray-500" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="text-xs text-gray-700 leading-relaxed">
+                  The AI agent gathers all available data for the selected
+                  lead—emails, previous meetings, and notes—to create a concise,
+                  high-value starting context.<br /><br />
+                  If the contact is brand-new, it performs a quick web search to
+                  surface relevant information automatically.
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* --- Right Column: Fine Tuning --- */}
+      {/* -------- Right column: fine-tuning -------- */}
       <Card className="bg-black/5 rounded-xl border-0">
         <CardHeader>
           <CardTitle className="text-base flex items-center">
@@ -235,7 +286,7 @@ export function SimulationConfig({ config, setConfig }: SimulationConfigProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Conversation Temperature */}
+          {/* Temperature */}
           <div>
             <label className="text-xs font-medium text-gray-600">
               Conversation Temperature
@@ -253,12 +304,12 @@ export function SimulationConfig({ config, setConfig }: SimulationConfigProps) {
             </p>
           </div>
 
-          {/* Personality Sliders */}
+          {/* Personality sliders */}
           <PersonalitySlider
             label="Pace"
             value={config.pace}
             minLabel="Conversational"
-            maxLabel="Straight to the point"
+            maxLabel="Straight to the Point"
             onValueChange={(v) => updateConfig('pace', v)}
           />
           <PersonalitySlider
@@ -269,16 +320,16 @@ export function SimulationConfig({ config, setConfig }: SimulationConfigProps) {
             onValueChange={(v) => updateConfig('focus', v)}
           />
           <PersonalitySlider
-            label="Technical Level"
+            label="Technical Depth"
             value={config.technicality}
             minLabel="Business User"
             maxLabel="Technical Expert"
             onValueChange={(v) => updateConfig('technicality', v)}
           />
           <PersonalitySlider
-            label="Decision Making"
+            label="Decision Style"
             value={config.riskAversion}
-            minLabel="Risk-averse"
+            minLabel="Risk-Averse"
             maxLabel="Innovator / Early Adopter"
             onValueChange={(v) => updateConfig('riskAversion', v)}
           />
@@ -290,7 +341,7 @@ export function SimulationConfig({ config, setConfig }: SimulationConfigProps) {
             onValueChange={(v) => updateConfig('formality', v)}
           />
 
-          {/* Predefined Traits */}
+          {/* Predefined traits */}
           <div>
             <label className="text-xs font-medium text-gray-600">
               Predefined Traits
