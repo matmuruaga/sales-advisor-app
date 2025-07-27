@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/button';
 
+export type QuickActionType = 'schedule' | 'simulate' | 'call' | 'nested';
+
 interface CalendarProps {
   selectedDate: Date | null;
   onDateSelect: (date: Date) => void;
@@ -58,6 +60,7 @@ const QuickActionButton = ({
 export function Calendar({
   selectedDate,
   onDateSelect,
+  onQuickAction,
   onScheduleMeeting,
   onSimulateConversation,
   onGenerateCallScript,
@@ -206,27 +209,27 @@ export function Calendar({
           <h4 className="text-xs text-gray-500 uppercase font-semibold mb-3">
             Quick Actions
           </h4>
-
           <div className="flex flex-col space-y-2">
+            {/* 4. Cada botón ahora llama a onQuickAction con su tipo específico */}
             <QuickActionButton
               icon={CalendarIcon}
               label="Schedule Meeting"
-              onClick={onScheduleMeeting}
+              onClick={() => onQuickAction('schedule')}
             />
             <QuickActionButton
               icon={MessageSquare}
               label="Simulate Conversation"
-              onClick={onSimulateConversation}
+              onClick={() => onQuickAction('simulate')}
             />
             <QuickActionButton
               icon={Phone}
               label="Call Script"
-              onClick={onGenerateCallScript}
+              onClick={() => onQuickAction('call')}
             />
             <QuickActionButton
               icon={GitBranch}
               label="Nested Meetings"
-              onClick={onViewNestedMeetings}
+              onClick={() => onQuickAction('nested')}
             />
           </div>
         </div>

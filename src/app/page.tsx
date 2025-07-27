@@ -4,15 +4,15 @@ import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/Calendar";
+import { Calendar, QuickActionType } from "@/components/Calendar"; // Importar el nuevo tipo
 import { MeetingTimeline } from "@/components/MeetingTimeline";
 import { AppHeader } from "@/components/AppHeader";
 import { AnalyticsPage } from "@/components/AnalyticsPage";
-import { ScheduleMeetingModal } from "@/components/ScheduleMeetingModal";
-import { QuickSimulateModal } from "@/components/QuickSimulateModal";
-import { CallScriptModal } from "@/components/CallScriptModal";
-import { NestedMeetingsModal } from "@/components/NestedMeetingsModal";
+import { ActionsPage } from "@/components/ActionsPage";
 import { AgentCommandPalette } from "@/components/AgentCommandPalette";
+import { CompanyPage } from "@/components/CompanyPage";
+// 2. Importar el nuevo modal unificado
+import { QuickActionPromptModal } from "@/components/QuickActionPromptModal";
 
 const mockMeetings: Record<string, any[]> = {
   "2025-07-17": [
@@ -57,18 +57,17 @@ const mockMeetings: Record<string, any[]> = {
 export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date("2025-07-17"));
   const [selectedMeeting, setSelectedMeeting] = useState<string | null>(null);
-  const [view, setView] = useState<"meetings" | "analytics">("meetings");
+  const [view, setView] = useState<'meetings' | 'analytics' | 'actions' | 'company'>('meetings');
 
-  const [open, setOpen] = useState({
-    schedule: false,
-    simulate: false,
-    call: false,
-    nested: false,
-    agent: false,
-  });
+  // 3. Reemplazar los estados de los modales antiguos
+  const [isQuickPromptOpen, setIsQuickPromptOpen] = useState(false);
+  const [activeQuickAction, setActiveQuickAction] = useState<QuickActionType | null>(null);
+  const [isAgentPaletteOpen, setIsAgentPaletteOpen] = useState(false);
 
-  const toggle = (key: keyof typeof open, v: boolean) =>
-    setOpen((prev) => ({ ...prev, [key]: v }));
+  const handleQuickAction = (actionType: QuickActionType) => {
+    setActiveQuickAction(actionType);
+    setIsQuickPromptOpen(true);
+  };
 
   const handleDate = (d: Date) => {
     setSelectedDate(d);
@@ -88,16 +87,14 @@ export default function HomePage() {
           transition={{ duration: 0.25 }}
           className="h-[calc(100vh-152px)]"
         >
-          {view === "meetings" ? (
+          {view === 'meetings' && (
             <div className="grid grid-cols-12 gap-6 h-full">
               <div className="col-span-12 lg:col-span-3 bg-white/70 dark:bg-white/5 backdrop-blur-md rounded-3xl p-6 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10 flex flex-col">
+                {/* 4. Pasar el nuevo handler al Calendario */}
                 <Calendar
                   selectedDate={selectedDate}
                   onDateSelect={handleDate}
-                  onScheduleMeeting={() => toggle("schedule", true)}
-                  onSimulateConversation={() => toggle("simulate", true)}
-                  onGenerateCallScript={() => toggle("call", true)}
-                  onViewNestedMeetings={() => toggle("nested", true)}
+                  onQuickAction={handleQuickAction}
                 />
               </div>
               <div className="col-span-12 lg:col-span-9 rounded-3xl overflow-hidden shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10">
@@ -111,27 +108,37 @@ export default function HomePage() {
                 />
               </div>
             </div>
-          ) : (
+          )}
+
+          {view === 'analytics' && (
             <div className="bg-white/70 dark:bg-white/5 backdrop-blur-md rounded-3xl p-6 shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10 h-full overflow-hidden">
               <AnalyticsPage />
             </div>
           )}
+
+          {view === 'actions' && (
+            <ActionsPage />
+          )}
+          {view === 'company' && (
+            <div className="bg-white/70 backdrop-blur-md rounded-3xl p-6 shadow-lg ring-1 ring-black/5 h-full overflow-hidden">
+              <CompanyPage />
+            </div>
+          )}
         </motion.section>
 
-        {/* --- Modal Rendering --- */}
-        <ScheduleMeetingModal isOpen={open.schedule} onClose={() => toggle("schedule", false)} />
-        <QuickSimulateModal isOpen={open.simulate} onClose={() => toggle("simulate", false)} />
-        <CallScriptModal isOpen={open.call} onClose={() => toggle("call", false)} />
-        <NestedMeetingsModal isOpen={open.nested} onClose={() => toggle("nested", false)} />
-        
-        {/* --- FIXED LINE: Added missing agent component --- */}
-        <AgentCommandPalette isOpen={open.agent} onClose={() => toggle("agent", false)} />
+        {/* 5. Renderizar el nuevo modal en lugar de los antiguos */}
+        <QuickActionPromptModal 
+            isOpen={isQuickPromptOpen}
+            onClose={() => setIsQuickPromptOpen(false)}
+            actionType={activeQuickAction}
+        />
+        <AgentCommandPalette isOpen={isAgentPaletteOpen} onClose={() => setIsAgentPaletteOpen(false)} />
       </div>
 
       {/* --- Animation Logic for Floating Button --- */}
       <div className="fixed bottom-6 right-10 md:right-14 z-50">
         <AnimatePresence>
-          {!open.agent && (
+          {!isAgentPaletteOpen && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -144,7 +151,7 @@ export default function HomePage() {
               <Button
                 size="icon"
                 className="rounded-full h-14 w-14 bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-2xl shadow-purple-600/30"
-                onClick={() => toggle("agent", true)}
+                onClick={() => setIsAgentPaletteOpen(true)}
               >
                 <Sparkles className="h-7 w-7" />
               </Button>

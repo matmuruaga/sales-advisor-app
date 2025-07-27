@@ -253,7 +253,7 @@ Background research shows ${leadName} is leading a wider digital-efficiency prog
                   onClick={handleEnrichAI}
                 >
                   <Sparkles className="w-4 h-4 mr-2 text-purple-500" />
-                  Enrich with AI
+                  AI Enrichment
                 </Button>
               </div>
 
