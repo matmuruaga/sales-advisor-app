@@ -1,6 +1,7 @@
 // src/hooks/useElevenLabs.ts
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useConversation } from '@elevenlabs/react';
 
 interface ElevenLabsConfig {
   agentId: string;
@@ -24,37 +25,71 @@ export const useElevenLabs = (config: ElevenLabsConfig) => {
     error: null,
   });
 
-  const conversationRef = useRef<any>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  // Usar el hook oficial de ElevenLabs
+  const conversation = useConversation({
+    onConnect: () => {
+      console.log('🟢 Conversation connected');
+      setState(prev => ({ 
+        ...prev, 
+        isConnected: true, 
+        isConnecting: false,
+        isListening: true,
+        error: null
+      }));
+    },
+    onDisconnect: () => {
+      console.log('🔴 Conversation disconnected');
+      setState(prev => ({ 
+        ...prev, 
+        isConnected: false,
+        isListening: false,
+        isSpeaking: false,
+        isConnecting: false
+      }));
+    },
+    onMessage: (message) => {
+      console.log('📩 Message received:', message);
+      // Aquí puedes manejar mensajes si necesitas
+    },
+    onError: (error) => {
+      console.error('❌ Conversation error:', error);
+      setState(prev => ({ 
+        ...prev, 
+        error: error.message || 'Conversation error occurred',
+        isConnected: false,
+        isConnecting: false
+      }));
+    }
+  });
 
-  const initializeAudio = async () => {
+  // Sincronizar el estado de isSpeaking del hook con nuestro estado
+  useEffect(() => {
+    setState(prev => ({ 
+      ...prev, 
+      isSpeaking: conversation.isSpeaking || false,
+      isListening: prev.isConnected && !conversation.isSpeaking
+    }));
+  }, [conversation.isSpeaking, state.isConnected]);
+
+  // Sincronizar el estado de conexión
+  useEffect(() => {
+    setState(prev => ({ 
+      ...prev, 
+      isConnected: conversation.status === 'connected'
+    }));
+  }, [conversation.status]);
+
+  const requestMicrophonePermission = async () => {
     try {
-      // Solicitar permisos de micrófono
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 16000
-        } 
-      });
-      mediaStreamRef.current = stream;
-
-      // Inicializar AudioContext
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: 16000
-      });
-      
-      if (audioContextRef.current.state === 'suspended') {
-        await audioContextRef.current.resume();
-      }
-      
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('🎤 Microphone permission granted');
       return true;
     } catch (error) {
-      console.error('Error inicializando audio:', error);
-      setState(prev => ({ ...prev, error: 'Microphone access denied. Please allow microphone permissions.' }));
+      console.error('❌ Microphone permission denied:', error);
+      setState(prev => ({ 
+        ...prev, 
+        error: 'Microphone access denied. Please allow microphone permissions to use voice conversation.'
+      }));
       return false;
     }
   };
@@ -65,96 +100,58 @@ export const useElevenLabs = (config: ElevenLabsConfig) => {
     setState(prev => ({ ...prev, isConnecting: true, error: null }));
 
     try {
-      // Inicializar audio primero
-      const audioInitialized = await initializeAudio();
-      if (!audioInitialized) {
+      // Solicitar permisos de micrófono primero
+      const micPermission = await requestMicrophonePermission();
+      if (!micPermission) {
         setState(prev => ({ ...prev, isConnecting: false }));
         return;
       }
 
-      // Crear conexión usando la nueva API de ElevenLabs
-      const startConversationElevenLabs = async () => {
-        try {
-          // Usar la API web de ElevenLabs directamente
-          const response = await fetch(`https://api.elevenlabs.io/v1/convai/conversation?agent_id=${config.agentId}`, {
-            method: 'GET',
-            headers: {
-              'xi-api-key': process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '',
-            },
-          });
+      console.log('🎤 Starting conversation with agent:', config.agentId);
 
-          if (!response.ok) {
-            throw new Error('Failed to start conversation');
-          }
+      // Iniciar la sesión con el agentId
+      const conversationId = await conversation.startSession({
+        agentId: config.agentId,
+      });
 
-          // Simular conexión exitosa
-          setState(prev => ({ 
-            ...prev, 
-            isConnected: true, 
-            isConnecting: false,
-            isListening: true 
-          }));
-
-          console.log('🎤 Conversación iniciada con ElevenLabs');
-          
-          // Simular conversación activa
-          setTimeout(() => {
-            setState(prev => ({ ...prev, isSpeaking: true, isListening: false }));
-            
-            setTimeout(() => {
-              setState(prev => ({ ...prev, isSpeaking: false, isListening: true }));
-            }, 3000);
-          }, 2000);
-
-        } catch (error) {
-          console.error('Error connecting to ElevenLabs:', error);
-          setState(prev => ({ 
-            ...prev, 
-            error: 'Failed to connect to ElevenLabs. Please check your API key.',
-            isConnected: false,
-            isConnecting: false 
-          }));
-        }
-      };
-
-      await startConversationElevenLabs();
+      console.log('✅ Conversation started with ID:', conversationId);
 
     } catch (error) {
-      console.error('Error iniciando conversación:', error);
+      console.error('❌ Error starting conversation:', error);
       setState(prev => ({ 
         ...prev, 
-        error: 'Failed to start conversation. Please try again.',
+        error: error instanceof Error ? error.message : 'Failed to start conversation',
         isConnecting: false 
       }));
     }
-  }, [config.agentId, state.isConnecting, state.isConnected]);
+  }, [config.agentId, state.isConnecting, state.isConnected, conversation]);
 
-  const stopConversation = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
+  const stopConversation = useCallback(async () => {
+    try {
+      console.log('🛑 Stopping conversation...');
+      await conversation.endSession();
+      
+      setState({
+        isConnected: false,
+        isConnecting: false,
+        isListening: false,
+        isSpeaking: false,
+        error: null,
+      });
+
+      console.log('🔴 Conversation stopped');
+    } catch (error) {
+      console.error('❌ Error stopping conversation:', error);
+      // Forzar el reset del estado aunque haya error
+      setState({
+        isConnected: false,
+        isConnecting: false,
+        isListening: false,
+        isSpeaking: false,
+        error: null,
+      });
     }
-
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      mediaStreamRef.current = null;
-    }
-
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-
-    setState({
-      isConnected: false,
-      isConnecting: false,
-      isListening: false,
-      isSpeaking: false,
-      error: null,
-    });
-
-    console.log('🔴 Conversación terminada');
-  }, []);
+  }, [conversation]);
 
   const toggleConversation = useCallback(() => {
     if (state.isConnected) {
@@ -164,34 +161,22 @@ export const useElevenLabs = (config: ElevenLabsConfig) => {
     }
   }, [state.isConnected, startConversation, stopConversation]);
 
-  // Simular cambios de estado para demo
-  const simulateConversation = useCallback(() => {
-    if (!state.isConnected) return;
-
-    const states = [
-      { isListening: true, isSpeaking: false },
-      { isListening: false, isSpeaking: true },
-    ];
-
-    let currentStateIndex = 0;
-    const interval = setInterval(() => {
-      if (!state.isConnected) {
-        clearInterval(interval);
-        return;
-      }
-
-      const newState = states[currentStateIndex];
-      setState(prev => ({ ...prev, ...newState }));
-      currentStateIndex = (currentStateIndex + 1) % states.length;
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [state.isConnected]);
+  const setVolume = useCallback(async (volume: number) => {
+    try {
+      await conversation.setVolume({ volume: Math.max(0, Math.min(1, volume)) });
+      console.log('🔊 Volume set to:', volume);
+    } catch (error) {
+      console.error('❌ Error setting volume:', error);
+    }
+  }, [conversation]);
 
   return {
     ...state,
     startConversation,
     stopConversation,
     toggleConversation,
+    setVolume,
+    // Exponer el objeto conversation para funciones adicionales si es necesario
+    conversation,
   };
 };

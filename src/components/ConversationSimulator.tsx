@@ -1,16 +1,17 @@
-// src/components/ConversationSimulator.tsx - VERSIÓN COMPLETA
+// src/components/ConversationSimulator.tsx - IMPLEMENTACIÓN FINAL WEBSOCKET
 
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Send, Sparkles, X, ArrowLeft, RotateCcw, MessageSquare, Mic } from "lucide-react";
+import { Send, Sparkles, X, ArrowLeft, RotateCcw, MessageSquare, Mic, Bot, Wifi, WifiOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 
-// Importar el componente de voz
+// Importar los componentes
 import { VoiceConversationInterface } from "./VoiceConversationInterface";
+import { useElevenLabsChat } from "@/hooks/useElevenLabsChat";
 
 interface ConversationSimulatorProps {
   participantName: string;
@@ -21,27 +22,6 @@ interface ConversationSimulatorProps {
 }
 
 type ConversationMode = 'text' | 'voice';
-
-const conversationScript = [
-  {
-    userMessage:
-      "Hi María, thanks for your time. By the way, I saw your LinkedIn post about the importance of practical AI—really insightful.",
-    aiResponse:
-      "Thanks for reading! Yes, I think there's a lot of hype in the market. I'm interested in seeing solutions that actually work.",
-  },
-  {
-    userMessage:
-      "Completely agree. That's why I wanted to quickly show you the Innovate Inc. case. They reduced meeting-prep time by 40% in Q1.",
-    aiResponse:
-      "Interesting. But what's the real cost of implementing something like this? I'm worried about complexity and total cost of ownership (TCO).",
-  },
-  {
-    userMessage:
-      "Great question. Our architecture lets you integrate via API in minutes. Savings in engineering hours and higher close rates bring positive ROI in under 6 months.",
-    aiResponse:
-      "Understood. I'd like to see a technical demo focused on the API next week.",
-  },
-];
 
 const scriptPoints = [
   {
@@ -58,8 +38,9 @@ const scriptPoints = [
   },
 ];
 
-// ID del agente de ElevenLabs
-const ELEVENLABS_AGENT_ID = "agent_6901k15kdqqrfx9s2f8zhby878c6";
+// IDs de agentes de ElevenLabs
+const ELEVENLABS_CHAT_AGENT_ID = "agent_2301k17ywyrkfaw8390ty3qpf5dd"; // Para chat de texto
+const ELEVENLABS_VOICE_AGENT_ID = "agent_6901k15kdqqrfx9s2f8zhby878c6"; // Para voz
 
 export function ConversationSimulator({
   participantName,
@@ -68,53 +49,55 @@ export function ConversationSimulator({
   onClose,
   onBack,
 }: ConversationSimulatorProps) {
-  const [messages, setMessages] = useState<Array<{ sender: "user" | "ai_client"; text: string }>>([]);
-  const [currentStep, setCurrentStep] = useState(0);
   const [inputValue, setInputValue] = useState("");
-  const [isAiTyping, setIsAiTyping] = useState(false);
   const [conversationMode, setConversationMode] = useState<ConversationMode>('text');
 
+  // Hook para chat con WebSocket usando SDK oficial
+  const { 
+    messages, 
+    isLoading, 
+    error: chatError,
+    isConnected,
+    isConnecting,
+    status,
+    sendMessage, 
+    clearConversation,
+    connectManually,
+    ensureConnection
+  } = useElevenLabsChat({ 
+    agentId: ELEVENLABS_CHAT_AGENT_ID,
+    participantName 
+  });
+
+  // Auto-conectar cuando se selecciona modo texto
   useEffect(() => {
     if (conversationMode === 'text') {
-      setInputValue(conversationScript[0].userMessage);
+      ensureConnection();
     }
-  }, [conversationMode]);
+  }, [conversationMode, ensureConnection]);
 
-  const handleSend = () => {
-    if (currentStep >= conversationScript.length) return;
+  const handleSend = async () => {
+    if (!inputValue.trim() || isLoading) return;
+    
+    const messageToSend = inputValue.trim();
+    setInputValue("");
+    await sendMessage(messageToSend);
+  };
 
-    const userMsg = { sender: "user" as const, text: inputValue };
-    setMessages((prev) => [...prev, userMsg]);
-    setIsAiTyping(true);
-
-    setTimeout(() => {
-      const aiMsg = {
-        sender: "ai_client" as const,
-        text: conversationScript[currentStep].aiResponse,
-      };
-      setMessages((prev) => [...prev, aiMsg]);
-
-      const next = currentStep + 1;
-      if (next < conversationScript.length) {
-        setInputValue(conversationScript[next].userMessage);
-      } else {
-        setInputValue("Simulation completed.");
-      }
-      setCurrentStep(next);
-      setIsAiTyping(false);
-    }, 1500);
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   const handleRestart = () => {
-    setMessages([]);
-    setCurrentStep(0);
-    setInputValue(conversationScript[0].userMessage);
-    setIsAiTyping(false);
+    clearConversation();
+    setInputValue("");
   };
 
   const switchToTextMode = () => {
     setConversationMode('text');
-    handleRestart();
   };
 
   const switchToVoiceMode = () => {
@@ -126,127 +109,158 @@ export function ConversationSimulator({
     .map((n) => n[0])
     .join("");
 
+  const getConnectionStatus = () => {
+    if (conversationMode === 'voice') {
+      return { text: 'Voice Mode', color: 'text-green-600', icon: Mic };
+    }
+    
+    switch (status) {
+      case 'connecting':
+        return { text: 'Connecting...', color: 'text-yellow-600', icon: WifiOff };
+      case 'connected':
+        return { text: 'Connected', color: 'text-green-600', icon: Wifi };
+      case 'disconnected':
+        return { text: 'Disconnected', color: 'text-gray-600', icon: WifiOff };
+      default:
+        return { text: 'Ready', color: 'text-gray-600', icon: WifiOff };
+    }
+  };
+
+  const connectionStatus = getConnectionStatus();
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+    <div 
       className="fixed inset-0 bg-black/30 backdrop-blur-md z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="relative w-full max-w-6xl h-[85vh] bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-white/20"
+      <div
+        className="relative w-full max-w-6xl bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl ring-1 ring-white/20 flex flex-col overflow-hidden"
+        style={{ height: '85vh' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <Card className="w-full h-full flex flex-col bg-transparent border-0 shadow-none">
-          <CardHeader className="flex-shrink-0 border-b bg-white/50 rounded-t-2xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                {onBack && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onBack}
-                    className="h-8 w-8"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                  </Button>
-                )}
-                <div className="flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5 text-purple-600" />
-                  <CardTitle className="text-lg">Conversation Simulator</CardTitle>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="text-xxs">
-                    {scenario}
-                  </Badge>
-                  <Badge variant="secondary" className="text-xxs">
-                    {difficulty}
-                  </Badge>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                {/* Toggle de modo de conversación */}
-                <div className="flex items-center bg-white/70 backdrop-blur-sm rounded-lg p-1 border">
-                  <Button
-                    variant={conversationMode === 'text' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={switchToTextMode}
-                    className="h-8 px-3 text-xs"
-                  >
-                    <MessageSquare className="w-4 h-4 mr-1" />
-                    Text Chat
-                  </Button>
-                  <Button
-                    variant={conversationMode === 'voice' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={switchToVoiceMode}
-                    className="h-8 px-3 text-xs bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
-                  >
-                    <Mic className="w-4 h-4 mr-1" />
-                    Voice Call
-                  </Button>
-                </div>
-                
-                {conversationMode === 'text' && (
-                  <Button variant="outline" size="sm" onClick={handleRestart}>
-                    <RotateCcw className="w-4 h-4 mr-1" />
-                    Restart
-                  </Button>
-                )}
-                
+        {/* Header fijo */}
+        <div className="flex-shrink-0 border-b bg-white/50 rounded-t-2xl p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              {onBack && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={onClose}
+                  onClick={onBack}
                   className="h-8 w-8"
                 >
-                  <X className="w-4 h-4" />
+                  <ArrowLeft className="w-4 h-4" />
                 </Button>
+              )}
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+                <h2 className="text-lg font-semibold">Conversation Simulator</h2>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline" className="text-xs">
+                  {scenario}
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  {difficulty}
+                </Badge>
               </div>
             </div>
-          </CardHeader>
+            
+            <div className="flex items-center space-x-2">
+              {/* Toggle de modo de conversación */}
+              <div className="flex items-center bg-white/70 backdrop-blur-sm rounded-lg p-1 border">
+                <Button
+                  variant={conversationMode === 'text' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={switchToTextMode}
+                  className={`h-8 px-3 text-xs ${
+                    conversationMode === 'text' 
+                      ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4 mr-1" />
+                  AI Chat
+                </Button>
+                <Button
+                  variant={conversationMode === 'voice' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={switchToVoiceMode}
+                  className={`h-8 px-3 text-xs ${
+                    conversationMode === 'voice' 
+                      ? 'bg-green-500 text-white hover:bg-green-600' 
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <Mic className="w-4 h-4 mr-1" />
+                  Voice Call
+                </Button>
+              </div>
+              
+              {conversationMode === 'text' && (
+                <>
+                  <Button variant="outline" size="sm" onClick={handleRestart}>
+                    <RotateCcw className="w-4 h-4 mr-1" />
+                    Clear
+                  </Button>
+                  {!isConnected && !isConnecting && (
+                    <Button variant="outline" size="sm" onClick={connectManually}>
+                      <Wifi className="w-4 h-4 mr-1" />
+                      Connect
+                    </Button>
+                  )}
+                </>
+              )}
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="h-8 w-8"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
 
-          <CardContent className="flex-1 overflow-hidden min-h-0 p-0">
-            <AnimatePresence mode="wait">
-              {conversationMode === 'voice' ? (
-                <motion.div
-                  key="voice"
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -50 }}
-                  transition={{ duration: 0.3 }}
-                  className="h-full"
-                >
-                  <VoiceConversationInterface
-                    participantName={participantName}
-                    agentId={ELEVENLABS_AGENT_ID}
-                    scenario={scenario}
-                    difficulty={difficulty}
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="text"
-                  initial={{ opacity: 0, x: -50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 50 }}
-                  transition={{ duration: 0.3 }}
-                  className="h-full grid grid-cols-12 gap-6 p-6"
-                >
-                  {/* Left Column: AI Strategic Script */}
-                  <div className="col-span-4 h-full flex flex-col">
-                    <div className="bg-white/70 rounded-xl p-4 h-full flex flex-col">
-                      <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center">
-                        <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
-                        AI Strategic Script
-                      </h4>
-                      <div className="space-y-3 flex-1 overflow-y-auto pr-2">
+        {/* Contenido principal */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <AnimatePresence mode="wait">
+            {conversationMode === 'voice' ? (
+              <motion.div
+                key="voice"
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3 }}
+                className="h-full"
+              >
+                <VoiceConversationInterface
+                  participantName={participantName}
+                  agentId={ELEVENLABS_VOICE_AGENT_ID}
+                  scenario={scenario}
+                  difficulty={difficulty}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="text"
+                initial={{ opacity: 0, x: -50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 50 }}
+                transition={{ duration: 0.3 }}
+                className="h-full p-6 grid grid-cols-12 gap-6"
+              >
+                {/* Left Column: AI Strategic Script */}
+                <div className="col-span-4 h-full">
+                  <div className="bg-white/70 rounded-xl p-4 h-full flex flex-col">
+                    <h4 className="text-sm font-semibold text-gray-800 mb-3 flex items-center flex-shrink-0">
+                      <Sparkles className="w-4 h-4 mr-2 text-purple-600" />
+                      AI Strategic Script
+                    </h4>
+                    <div className="flex-1 overflow-y-auto pr-2">
+                      <div className="space-y-3">
                         {scriptPoints.map((point, index) => (
                           <div
                             key={index}
@@ -255,35 +269,87 @@ export function ConversationSimulator({
                             <p className="text-xs font-semibold text-purple-800 mb-1">
                               {point.title}
                             </p>
-                            <p className="text-xxs text-purple-700 leading-relaxed">
+                            <p className="text-xs text-purple-700 leading-relaxed">
                               {point.content}
                             </p>
                           </div>
                         ))}
+                        
+                        {/* Status de WebSocket */}
+                        <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                          <p className="text-xs font-semibold text-blue-800 mb-1 flex items-center">
+                            <connectionStatus.icon className="w-3 h-3 mr-1" />
+                            WebSocket Status
+                          </p>
+                          <p className={`text-xs ${connectionStatus.color}`}>
+                            {connectionStatus.text}
+                          </p>
+                          {isLoading && (
+                            <p className="text-xs text-blue-600 mt-1">
+                              AI is responding...
+                            </p>
+                          )}
+                          {chatError && (
+                            <p className="text-xs text-red-600 mt-1">
+                              Error: {chatError}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1">
+                            Agent: {ELEVENLABS_CHAT_AGENT_ID.slice(-8)}...
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Right Column: Chat Simulation */}
-                  <div className="col-span-8 h-full flex flex-col">
-                    <div className="bg-white/70 rounded-xl flex flex-col h-full overflow-hidden">
-                      {/* Header con información del participante */}
-                      <div className="p-4 border-b border-gray-200/50">
-                        <div className="flex items-center space-x-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="text-sm bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
-                              {clientInitials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-sm font-semibold text-gray-800">{participantName}</p>
-                            <p className="text-xxs text-gray-500">AI Text Simulation • {scenario}</p>
-                          </div>
+                {/* Right Column: Real WebSocket Chat */}
+                <div className="col-span-8 h-full flex flex-col">
+                  <div className="bg-white/70 rounded-xl h-full flex flex-col overflow-hidden">
+                    {/* Header */}
+                    <div className="flex-shrink-0 p-4 border-b border-gray-200/50">
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="text-sm bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
+                            {clientInitials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">{participantName}</p>
+                          <p className="text-xs text-gray-500">
+                            {isConnected ? 'Live ElevenLabs Chat' : 'Disconnected'} • {scenario}
+                          </p>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Messages area */}
-                      <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+                    {/* Messages area */}
+                    <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                      <div className="space-y-4">
+                        {!isConnected && messages.length === 0 && (
+                          <div className="flex items-center justify-center h-full text-gray-500">
+                            <div className="text-center">
+                              <WifiOff className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                              <p className="text-sm">
+                                {isConnecting ? `Connecting to ${participantName}...` : 'Disconnected'}
+                              </p>
+                              <p className="text-xs mt-1">
+                                {isConnecting ? 'Establishing WebSocket connection...' : 'Click Connect to start'}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {isConnected && messages.length === 0 && (
+                          <div className="flex items-center justify-center h-full text-gray-500">
+                            <div className="text-center">
+                              <MessageSquare className="w-12 h-12 mx-auto mb-3 text-green-300" />
+                              <p className="text-sm">Connected to {participantName}</p>
+                              <p className="text-xs mt-1">The AI agent will send a welcome message soon</p>
+                            </div>
+                          </div>
+                        )}
+                        
                         <AnimatePresence>
                           {messages.map((msg, index) => (
                             <motion.div
@@ -296,8 +362,8 @@ export function ConversationSimulator({
                               }`}
                             >
                               {msg.sender === "ai_client" && (
-                                <Avatar className="h-7 w-7">
-                                  <AvatarFallback className="text-xxs bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
+                                <Avatar className="h-7 w-7 flex-shrink-0">
+                                  <AvatarFallback className="text-xs bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
                                     {clientInitials}
                                   </AvatarFallback>
                                 </Avatar>
@@ -312,22 +378,23 @@ export function ConversationSimulator({
                                 {msg.text}
                               </div>
                               {msg.sender === "user" && (
-                                <Avatar className="h-7 w-7">
-                                  <AvatarFallback className="text-xxs bg-gradient-to-br from-blue-100 to-cyan-100 text-blue-700">
+                                <Avatar className="h-7 w-7 flex-shrink-0">
+                                  <AvatarFallback className="text-xs bg-gradient-to-br from-blue-100 to-cyan-100 text-blue-700">
                                     ME
                                   </AvatarFallback>
                                 </Avatar>
                               )}
                             </motion.div>
                           ))}
-                          {isAiTyping && (
+                          
+                          {isLoading && (
                             <motion.div
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               className="flex items-end gap-3 justify-start"
                             >
                               <Avatar className="h-7 w-7">
-                                <AvatarFallback className="text-xxs bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
+                                <AvatarFallback className="text-xs bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
                                   {clientInitials}
                                 </AvatarFallback>
                               </Avatar>
@@ -342,39 +409,44 @@ export function ConversationSimulator({
                           )}
                         </AnimatePresence>
                       </div>
+                    </div>
 
-                      {/* Input bar */}
-                      <div className="p-4 border-t border-gray-200/50 bg-white/50 rounded-b-xl">
-                        <div className="flex items-center gap-3">
-                          <Input
-                            type="text"
-                            placeholder="Type your response..."
-                            value={inputValue}
-                            readOnly
-                            className="flex-1 bg-white border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          />
-                          <Button
-                            onClick={handleSend}
-                            disabled={isAiTyping || currentStep >= conversationScript.length}
-                            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                          >
-                            <Send className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <p className="text-xxs text-gray-500 mt-2">
-                          {currentStep < conversationScript.length 
-                            ? `Step ${currentStep + 1} of ${conversationScript.length}` 
-                            : "Simulation completed"}
-                        </p>
+                    {/* Input bar */}
+                    <div className="flex-shrink-0 p-4 border-t border-gray-200/50 bg-white/50 rounded-b-xl">
+                      <div className="flex items-center gap-3">
+                        <Input
+                          type="text"
+                          placeholder={isConnected ? "Type your message to the AI prospect..." : "Connect first to start chatting..."}
+                          value={inputValue}
+                          onChange={(e) => setInputValue(e.target.value)}
+                          onKeyDown={handleKeyPress}
+                          disabled={isLoading || !isConnected}
+                          className="flex-1 bg-white border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                        />
+                        <Button
+                          onClick={handleSend}
+                          disabled={isLoading || !inputValue.trim() || !isConnected}
+                          className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                        >
+                          <Send className="w-4 h-4" />
+                        </Button>
                       </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {isLoading 
+                          ? "AI is generating response..." 
+                          : isConnected
+                          ? `Live WebSocket chat with ${participantName} • Press Enter to send`
+                          : "WebSocket disconnected • Click Connect to resume"
+                        }
+                      </p>
                     </div>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </motion.div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
   );
 }
