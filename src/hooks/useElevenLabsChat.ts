@@ -1,4 +1,4 @@
-// src/hooks/useElevenLabsChat.ts - IMPLEMENTACIÓN FINAL CON SDK OFICIAL
+// src/hooks/useElevenLabsChat.ts - IMPLEMENTACIÓN FINAL CON SDK OFICIAL - CORREGIDO
 
 import { useConversation } from '@elevenlabs/react';
 import { useState, useCallback, useRef } from 'react';
@@ -51,16 +51,42 @@ export const useElevenLabsChat = (config: ElevenLabsChatConfig) => {
     },
     
     onMessage: (message) => {
-      console.log('📥 Mensaje del agente:', message);
+      console.log('📥 Mensaje del agente (objeto completo):', message);
       
       // Evitar duplicados si ya estamos procesando
       if (isProcessingMessage.current) return;
       isProcessingMessage.current = true;
       
+      // ✅ CORRECCIÓN: Extraer el texto del mensaje correctamente
+      let messageText = '';
+      
+      if (typeof message === 'string') {
+        // Si es un string simple
+        messageText = message;
+      } else if (message && typeof message === 'object') {
+        // Si es un objeto, buscar la propiedad que contiene el texto
+        if ('message' in message && typeof message.message === 'string') {
+          messageText = message.message;
+        } else if ('text' in message && typeof message.text === 'string') {
+          messageText = message.text;
+        } else if ('content' in message && typeof message.content === 'string') {
+          messageText = message.content;
+        } else {
+          // Si no encontramos el texto, usar JSON.stringify como fallback
+          console.warn('⚠️ Estructura de mensaje inesperada:', message);
+          messageText = JSON.stringify(message);
+        }
+      } else {
+        // Fallback para otros tipos
+        messageText = String(message);
+      }
+
+      console.log('📥 Texto extraído del mensaje:', messageText);
+
       // Agregar mensaje del agente
       const aiMessage: ChatMessage = {
         sender: 'ai_client',
-        text: message,
+        text: messageText, // ✅ Ahora usamos el texto extraído correctamente
         timestamp: new Date(),
       };
 

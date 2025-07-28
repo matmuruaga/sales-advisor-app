@@ -304,144 +304,142 @@ export function ConversationSimulator({
                 </div>
 
                 {/* Right Column: Real WebSocket Chat */}
-                <div className="col-span-8 h-full flex flex-col">
-                  <div className="bg-white/70 rounded-xl h-full flex flex-col overflow-hidden">
-                    {/* Header */}
-                    <div className="flex-shrink-0 p-4 border-b border-gray-200/50">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-sm bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
-                            {clientInitials}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">{participantName}</p>
-                          <p className="text-xs text-gray-500">
-                            {isConnected ? 'Live ElevenLabs Chat' : 'Disconnected'} • {scenario}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+<div className="col-span-8 h-full flex flex-col bg-white/70 rounded-xl overflow-hidden shadow-inner">
+    {/* Header */}
+    <div className="flex-shrink-0 p-4 border-b border-gray-200/50">
+        <div className="flex items-center space-x-3">
+            <Avatar className="h-8 w-8">
+                <AvatarFallback className="text-sm bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
+                    {clientInitials}
+                </AvatarFallback>
+            </Avatar>
+            <div>
+                <p className="text-sm font-semibold text-gray-800">{participantName}</p>
+                <p className="text-xs text-gray-500">
+                    {isConnected ? 'Live ElevenLabs Chat' : 'Disconnected'} • {scenario}
+                </p>
+            </div>
+        </div>
+    </div>
 
-                    {/* Messages area */}
-                    <div className="flex-1 overflow-y-auto p-4 min-h-0">
-                      <div className="space-y-4">
-                        {!isConnected && messages.length === 0 && (
-                          <div className="flex items-center justify-center h-full text-gray-500">
-                            <div className="text-center">
-                              <WifiOff className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                              <p className="text-sm">
-                                {isConnecting ? `Connecting to ${participantName}...` : 'Disconnected'}
-                              </p>
-                              <p className="text-xs mt-1">
-                                {isConnecting ? 'Establishing WebSocket connection...' : 'Click Connect to start'}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        {isConnected && messages.length === 0 && (
-                          <div className="flex items-center justify-center h-full text-gray-500">
-                            <div className="text-center">
-                              <MessageSquare className="w-12 h-12 mx-auto mb-3 text-green-300" />
-                              <p className="text-sm">Connected to {participantName}</p>
-                              <p className="text-xs mt-1">The AI agent will send a welcome message soon</p>
-                            </div>
-                          </div>
-                        )}
-                        
-                        <AnimatePresence>
-                          {messages.map((msg, index) => (
-                            <motion.div
-                              key={index}
-                              layout
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className={`flex items-end gap-3 ${
-                                msg.sender === "user" ? "justify-end" : "justify-start"
-                              }`}
-                            >
-                              {msg.sender === "ai_client" && (
-                                <Avatar className="h-7 w-7 flex-shrink-0">
-                                  <AvatarFallback className="text-xs bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
-                                    {clientInitials}
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                              <div
-                                className={`max-w-[75%] p-3 rounded-2xl text-sm shadow-sm ${
-                                  msg.sender === "user"
-                                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-br-md"
-                                    : "bg-white text-gray-800 rounded-bl-md border border-gray-200"
-                                }`}
-                              >
-                                {msg.text}
-                              </div>
-                              {msg.sender === "user" && (
-                                <Avatar className="h-7 w-7 flex-shrink-0">
-                                  <AvatarFallback className="text-xs bg-gradient-to-br from-blue-100 to-cyan-100 text-blue-700">
-                                    ME
-                                  </AvatarFallback>
-                                </Avatar>
-                              )}
-                            </motion.div>
-                          ))}
-                          
-                          {isLoading && (
-                            <motion.div
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="flex items-end gap-3 justify-start"
-                            >
-                              <Avatar className="h-7 w-7">
-                                <AvatarFallback className="text-xs bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
-                                  {clientInitials}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="max-w-[75%] p-3 rounded-2xl text-sm bg-white text-gray-800 rounded-bl-md border border-gray-200">
-                                <div className="flex items-center gap-1">
-                                  <span className="h-2 w-2 bg-purple-400 rounded-full animate-pulse [animation-delay:-0.3s]" />
-                                  <span className="h-2 w-2 bg-purple-400 rounded-full animate-pulse [animation-delay:-0.15s]" />
-                                  <span className="h-2 w-2 bg-purple-400 rounded-full animate-pulse" />
-                                </div>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
+    {/* Messages area */}
+    <div className="flex-1 overflow-y-auto p-4 min-h-0">
+        <div className="space-y-4">
+            {!isConnected && messages.length === 0 && (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                    <div className="text-center">
+                        <WifiOff className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                        <p className="text-sm">
+                            {isConnecting ? `Connecting to ${participantName}...` : 'Disconnected'}
+                        </p>
+                        <p className="text-xs mt-1">
+                            {isConnecting ? 'Establishing WebSocket connection...' : 'Click Connect to start'}
+                        </p>
                     </div>
-
-                    {/* Input bar */}
-                    <div className="flex-shrink-0 p-4 border-t border-gray-200/50 bg-white/50 rounded-b-xl">
-                      <div className="flex items-center gap-3">
-                        <Input
-                          type="text"
-                          placeholder={isConnected ? "Type your message to the AI prospect..." : "Connect first to start chatting..."}
-                          value={inputValue}
-                          onChange={(e) => setInputValue(e.target.value)}
-                          onKeyDown={handleKeyPress}
-                          disabled={isLoading || !isConnected}
-                          className="flex-1 bg-white border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
-                        />
-                        <Button
-                          onClick={handleSend}
-                          disabled={isLoading || !inputValue.trim() || !isConnected}
-                          className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                        >
-                          <Send className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        {isLoading 
-                          ? "AI is generating response..." 
-                          : isConnected
-                          ? `Live WebSocket chat with ${participantName} • Press Enter to send`
-                          : "WebSocket disconnected • Click Connect to resume"
-                        }
-                      </p>
-                    </div>
-                  </div>
                 </div>
+            )}
+
+            {isConnected && messages.length === 0 && (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                    <div className="text-center">
+                        <MessageSquare className="w-12 h-12 mx-auto mb-3 text-green-300" />
+                        <p className="text-sm">Connected to {participantName}</p>
+                        <p className="text-xs mt-1">The AI agent will send a welcome message soon</p>
+                    </div>
+                </div>
+            )}
+            
+            <AnimatePresence>
+                {messages.map((msg, index) => (
+                <motion.div
+                    key={index}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex items-end gap-3 ${
+                    msg.sender === "user" ? "justify-end" : "justify-start"
+                    }`}
+                >
+                    {msg.sender === "ai_client" && (
+                    <Avatar className="h-7 w-7 flex-shrink-0">
+                        <AvatarFallback className="text-xs bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
+                        {clientInitials}
+                        </AvatarFallback>
+                    </Avatar>
+                    )}
+                    <div
+                    className={`max-w-[75%] p-3 rounded-2xl text-sm shadow-sm ${
+                        msg.sender === "user"
+                        ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-br-md"
+                        : "bg-white text-gray-800 rounded-bl-md border border-gray-200"
+                    }`}
+                    >
+                    {msg.text}
+                    </div>
+                    {msg.sender === "user" && (
+                    <Avatar className="h-7 w-7 flex-shrink-0">
+                        <AvatarFallback className="text-xs bg-gradient-to-br from-blue-100 to-cyan-100 text-blue-700">
+                        ME
+                        </AvatarFallback>
+                    </Avatar>
+                    )}
+                </motion.div>
+                ))}
+                
+                {isLoading && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-end gap-3 justify-start"
+                >
+                    <Avatar className="h-7 w-7">
+                    <AvatarFallback className="text-xs bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700">
+                        {clientInitials}
+                    </AvatarFallback>
+                    </Avatar>
+                    <div className="max-w-[75%] p-3 rounded-2xl text-sm bg-white text-gray-800 rounded-bl-md border border-gray-200">
+                    <div className="flex items-center gap-1">
+                        <span className="h-2 w-2 bg-purple-400 rounded-full animate-pulse [animation-delay:-0.3s]" />
+                        <span className="h-2 w-2 bg-purple-400 rounded-full animate-pulse [animation-delay:-0.15s]" />
+                        <span className="h-2 w-2 bg-purple-400 rounded-full animate-pulse" />
+                    </div>
+                    </div>
+                </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    </div>
+
+    {/* Input bar */}
+    <div className="flex-shrink-0 p-4 border-t border-gray-200/50 bg-white/50 rounded-b-xl">
+        <div className="flex items-center gap-3">
+        <Input
+            type="text"
+            placeholder={isConnected ? "Type your message to the AI prospect..." : "Connect first to start chatting..."}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyPress}
+            disabled={isLoading || !isConnected}
+            className="flex-1 bg-white border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+        />
+        <Button
+            onClick={handleSend}
+            disabled={isLoading || !inputValue.trim() || !isConnected}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+        >
+            <Send className="w-4 h-4" />
+        </Button>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+        {isLoading 
+            ? "AI is generating response..." 
+            : isConnected
+            ? `Live WebSocket chat with ${participantName} • Press Enter to send`
+            : "WebSocket disconnected • Click Connect to resume"
+        }
+        </p>
+    </div>
+</div>
               </motion.div>
             )}
           </AnimatePresence>
