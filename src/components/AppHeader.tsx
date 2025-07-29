@@ -17,6 +17,8 @@ import {
   Sparkles,
   Bot,
   LayoutDashboard,
+  MessageSquare, // Icono para 'AI Coach'
+  Headset,      // Icono para 'AI Call Assistant'
 } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -67,7 +69,8 @@ const NavItem = ({
   </Button>
 );
 
-const AiToolsDropdown = ({ isCollapsed }: { isCollapsed: boolean }) => (
+// --- CAMBIOS REALIZADOS AQUÍ ---
+const AiCockpitDropdown = ({ isCollapsed }: { isCollapsed: boolean }) => (
     <DropdownMenu>
         <DropdownMenuTrigger asChild>
             <div className="rounded-full bg-gradient-to-br from-purple-400 to-pink-500 p-px shadow-sm hover:shadow-md transition-shadow cursor-pointer">
@@ -75,8 +78,9 @@ const AiToolsDropdown = ({ isCollapsed }: { isCollapsed: boolean }) => (
                     <Sparkles className="w-4 h-4 flex-shrink-0" />
                     <AnimatePresence>
                         {!isCollapsed && (
+                            // 1. Texto del botón cambiado a "AI Cockpit"
                             <motion.span initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto', transition: { delay: 0.1, duration: 0.2 } }} exit={{ opacity: 0, width: 0, margin: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden whitespace-nowrap font-medium">
-                                AI Tools
+                                AI Cockpit
                             </motion.span>
                         )}
                     </AnimatePresence>
@@ -84,13 +88,22 @@ const AiToolsDropdown = ({ isCollapsed }: { isCollapsed: boolean }) => (
             </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-56" align="start">
+            {/* 2. Nuevas opciones en el menú desplegable */}
             <DropdownMenuItem>
-                <Bot className="mr-2 h-4 w-4" />
-                <span>AI Coach</span>
+                <Search className="mr-2 h-4 w-4" />
+                <span>AI Research</span>
             </DropdownMenuItem>
              <DropdownMenuItem>
-                <LayoutDashboard className="mr-2 h-4 w-4" />
-                <span>AI Cockpit</span>
+                <Bot className="mr-2 h-4 w-4" />
+                <span>AI Simulator</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                <span>AI Coach</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+                <Headset className="mr-2 h-4 w-4" />
+                <span>AI Call Assistant</span>
             </DropdownMenuItem>
         </DropdownMenuContent>
     </DropdownMenu>
@@ -101,8 +114,7 @@ export function AppHeader({
   setActiveView,
 }: {
   activeView: string;
-  // 1. AÑADIR 'analytics' DE VUELTA A LOS TIPOS
-  setActiveView: (view: 'meetings' | 'analytics' | 'actions' | 'company') => void;
+  setActiveView: (view: 'meetings' | 'analytics' | 'actions' | 'company' | 'contacts') => void;
 }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -117,7 +129,8 @@ export function AppHeader({
             onClick={() => setActiveView('meetings')}
             isCollapsed={isSearchOpen}
           />
-          <AiToolsDropdown isCollapsed={isSearchOpen} />
+          {/* 3. Componente renombrado para mayor claridad */}
+          <AiCockpitDropdown isCollapsed={isSearchOpen} />
           <NavItem
             icon={Zap}
             label="Actions"
@@ -125,7 +138,6 @@ export function AppHeader({
             onClick={() => setActiveView('actions')}
             isCollapsed={isSearchOpen}
           />
-          {/* 2. BOTÓN "Analytics" AÑADIDO EN LA POSICIÓN CORRECTA */}
           <NavItem
             icon={BarChart3}
             label="Analytics"
@@ -135,10 +147,10 @@ export function AppHeader({
           />
           <NavItem
             icon={ContactsIcon}
-            label="Contacts"
-            isActive={false}
-            onClick={() => {}}
-            isCollapsed={isSearchOpen}
+              label="Contacts"
+              isActive={activeView === 'contacts'}
+              onClick={() => setActiveView('contacts')}
+              isCollapsed={isSearchOpen}
           />
            <NavItem
             icon={Users2}

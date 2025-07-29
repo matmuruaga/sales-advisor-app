@@ -11,6 +11,9 @@ import { AnalyticsPage } from "@/components/AnalyticsPage";
 import { ActionsPage } from "@/components/ActionsPage";
 import { AgentCommandPalette } from "@/components/AgentCommandPalette";
 import { CompanyPage } from "@/components/CompanyPage";
+import { ContactsPage } from "@/components/ContactsPage"; 
+import { ContactDetailPanel } from "@/components/contacts/ContactDetailPanel";
+import { CompanyDetailPanel } from "@/components/contacts/CompanyDetailPanel";
 // 2. Importar el nuevo modal unificado
 import { QuickActionPromptModal } from "@/components/QuickActionPromptModal";
 
@@ -57,7 +60,9 @@ const mockMeetings: Record<string, any[]> = {
 export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date("2025-07-17"));
   const [selectedMeeting, setSelectedMeeting] = useState<string | null>(null);
-  const [view, setView] = useState<'meetings' | 'analytics' | 'actions' | 'company'>('meetings');
+  const [view, setView] = useState<'meetings' | 'analytics' | 'actions' | 'company' | 'contacts'>('meetings');
+  const [activeContactId, setActiveContactId] = useState<string | null>(null);
+  const [activeCompany, setActiveCompany] = useState<string | null>(null);
 
   // 3. Reemplazar los estados de los modales antiguos
   const [isQuickPromptOpen, setIsQuickPromptOpen] = useState(false);
@@ -77,7 +82,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 text-gray-800 dark:text-gray-100 selection:bg-purple-200 dark:selection:bg-purple-600">
       <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8 py-6 space-y-6">
-        <AppHeader activeView={view} setActiveView={setView} />
+         <AppHeader activeView={view} setActiveView={setView} />
 
         <motion.section
           key={view}
@@ -124,7 +129,17 @@ export default function HomePage() {
               <CompanyPage />
             </div>
           )}
+           {view === 'contacts' && (
+            <div className="bg-white/70 backdrop-blur-md rounded-3xl p-6 shadow-lg ring-1 ring-black/5 h-full overflow-hidden">
+              {/* 4. Pasar las funciones para actualizar el estado */}
+              <ContactsPage 
+                onContactSelect={setActiveContactId}
+                onCompanySelect={setActiveCompany}
+              />
+        </div>
+      )}
         </motion.section>
+        
 
         {/* 5. Renderizar el nuevo modal en lugar de los antiguos */}
         <QuickActionPromptModal 
@@ -133,6 +148,23 @@ export default function HomePage() {
             actionType={activeQuickAction}
         />
         <AgentCommandPalette isOpen={isAgentPaletteOpen} onClose={() => setIsAgentPaletteOpen(false)} />
+      </div>
+       {/* 5. Contenedor de los Paneles Deslizantes a nivel de página */}
+      <div className="absolute inset-0 pointer-events-none z-40">
+        <AnimatePresence>
+          {activeContactId && (
+            <ContactDetailPanel 
+              contactId={activeContactId} 
+              onClose={() => setActiveContactId(null)} 
+            />
+          )}
+          {activeCompany && (
+            <CompanyDetailPanel 
+              companyName={activeCompany} 
+              onClose={() => setActiveCompany(null)} 
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       {/* --- Animation Logic for Floating Button --- */}
@@ -146,7 +178,7 @@ export default function HomePage() {
               className="relative"
             >
               <motion.div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-gray-800 text-white text-xxs rounded-full shadow-lg whitespace-nowrap">
-                The Agent
+                AI Coach
               </motion.div>
               <Button
                 size="icon"
