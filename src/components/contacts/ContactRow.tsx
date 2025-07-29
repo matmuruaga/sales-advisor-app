@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 
 interface ContactRowProps {
   contact: Contact;
-  // 1. Cambiamos las props para manejar los nuevos eventos
   onContactSelect: (contactId: string) => void;
   onCompanySelect: (companyName: string) => void;
 }
@@ -15,13 +14,12 @@ export const ContactRow = ({ contact, onContactSelect, onCompanySelect }: Contac
   const dealValueInEuros = contact.value.replace('$', '€');
 
   return (
-    // 2. El div principal ya no tiene un onClick global
+    // Ya no hay un onClick global en la fila
     <div className="grid grid-cols-12 gap-4 items-center p-3 rounded-lg hover:bg-gray-50 transition-colors border-b">
       {/* Contact */}
       <div className="col-span-3 flex items-center space-x-3">
         <img src={contact.avatar} alt={contact.name} className="w-9 h-9 rounded-full object-cover" />
         <div>
-          {/* 3. El onClick ahora está en el nombre */}
           <p 
             className="font-semibold text-sm text-gray-800 truncate cursor-pointer"
             onClick={(e) => { e.stopPropagation(); onContactSelect(contact.id); }}
@@ -34,7 +32,6 @@ export const ContactRow = ({ contact, onContactSelect, onCompanySelect }: Contac
 
       {/* Company */}
       <div className="col-span-2">
-        {/* 4. El onClick ahora está en la compañía */}
         <p 
             className="text-sm text-gray-800 truncate cursor-pointer"
             onClick={(e) => { e.stopPropagation(); onCompanySelect(contact.company); }}
@@ -43,7 +40,6 @@ export const ContactRow = ({ contact, onContactSelect, onCompanySelect }: Contac
         </p>
         <p className="text-xs text-gray-500 truncate">{contact.location}</p>
       </div>
-
 
       {/* Status & Score */}
       <div className="col-span-2 flex items-center space-x-2">
@@ -71,7 +67,7 @@ export const ContactRow = ({ contact, onContactSelect, onCompanySelect }: Contac
         <Button 
           variant="ghost" 
           size="icon" 
-          onClick={(e) => { e.stopPropagation(); onContactSelect(contact.id); }} // El botón también abre el panel de contacto
+          onClick={(e) => { e.stopPropagation(); onContactSelect(contact.id); }}
           className="rounded-full h-8 w-8"
         >
           <MoreHorizontal className="w-4 h-4 text-gray-500" />

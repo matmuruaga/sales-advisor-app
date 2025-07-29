@@ -69,6 +69,17 @@ export default function HomePage() {
   const [activeQuickAction, setActiveQuickAction] = useState<QuickActionType | null>(null);
   const [isAgentPaletteOpen, setIsAgentPaletteOpen] = useState(false);
 
+   // --- LÓGICA DE TOGGLE AQUÍ ---
+  const handleContactSelect = (contactId: string) => {
+    // Si el panel ya está abierto para este contacto, ciérralo. Si no, ábrelo.
+    setActiveContactId(prevId => (prevId === contactId ? null : contactId));
+  };
+
+  const handleCompanySelect = (companyName: string) => {
+    // Misma lógica para el panel de la compañía
+    setActiveCompany(prevName => (prevName === companyName ? null : companyName));
+  };
+
   const handleQuickAction = (actionType: QuickActionType) => {
     setActiveQuickAction(actionType);
     setIsQuickPromptOpen(true);
@@ -129,15 +140,15 @@ export default function HomePage() {
               <CompanyPage />
             </div>
           )}
-           {view === 'contacts' && (
+            {view === 'contacts' && (
             <div className="bg-white/70 backdrop-blur-md rounded-3xl p-6 shadow-lg ring-1 ring-black/5 h-full overflow-hidden">
-              {/* 4. Pasar las funciones para actualizar el estado */}
+              {/* Pasar los nuevos handlers a la página de contactos */}
               <ContactsPage 
-                onContactSelect={setActiveContactId}
-                onCompanySelect={setActiveCompany}
+                onContactSelect={handleContactSelect}
+                onCompanySelect={handleCompanySelect}
               />
-        </div>
-      )}
+            </div>
+          )}
         </motion.section>
         
 
