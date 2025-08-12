@@ -114,7 +114,7 @@ export function AppHeader({
   setActiveView,
 }: {
   activeView: string;
-  setActiveView: (view: 'meetings' | 'analytics' | 'actions' | 'company' | 'contacts') => void;
+  setActiveView: (view: 'meetings' | 'analytics' | 'actions' | 'company' | 'contacts' | 'team' | 'reports') => void;
 }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
@@ -155,15 +155,15 @@ export function AppHeader({
            <NavItem
             icon={Users2}
             label="My Team"
-            isActive={false}
-            onClick={() => {}}
+            isActive={activeView === 'team'}
+            onClick={() => setActiveView('team')}
             isCollapsed={isSearchOpen}
           />
           <NavItem
             icon={FileText}
             label="Reports"
-            isActive={false}
-            onClick={() => {}}
+            isActive={activeView === 'reports'}
+            onClick={() => setActiveView('reports')}
             isCollapsed={isSearchOpen}
           />
         </div>

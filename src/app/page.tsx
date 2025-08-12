@@ -14,6 +14,9 @@ import { CompanyPage } from "@/components/CompanyPage";
 import { ContactsPage } from "@/components/ContactsPage"; 
 import { ContactDetailPanel } from "@/components/contacts/ContactDetailPanel";
 import { CompanyDetailPanel } from "@/components/contacts/CompanyDetailPanel";
+import { TeamPage } from "@/components/TeamPage";
+import { TeamMemberDetailPanel } from "@/components/team/TeamMemberDetailPanel";
+import { ReportsPage } from "@/components/ReportsPage";
 // 2. Importar el nuevo modal unificado
 import { QuickActionPromptModal } from "@/components/QuickActionPromptModal";
 
@@ -60,9 +63,10 @@ const mockMeetings: Record<string, any[]> = {
 export default function HomePage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date("2025-07-17"));
   const [selectedMeeting, setSelectedMeeting] = useState<string | null>(null);
-  const [view, setView] = useState<'meetings' | 'analytics' | 'actions' | 'company' | 'contacts'>('meetings');
+  const [view, setView] = useState<'meetings' | 'analytics' | 'actions' | 'company' | 'contacts' | 'team' | 'reports'>('meetings');
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
   const [activeCompany, setActiveCompany] = useState<string | null>(null);
+  const [activeTeamMemberId, setActiveTeamMemberId] = useState<string | null>(null);
 
   // 3. Reemplazar los estados de los modales antiguos
   const [isQuickPromptOpen, setIsQuickPromptOpen] = useState(false);
@@ -78,6 +82,11 @@ export default function HomePage() {
   const handleCompanySelect = (companyName: string) => {
     // Misma lógica para el panel de la compañía
     setActiveCompany(prevName => (prevName === companyName ? null : companyName));
+  };
+
+  const handleTeamMemberSelect = (memberId: string) => {
+    // Misma lógica para el panel del miembro del equipo
+    setActiveTeamMemberId(prevId => (prevId === memberId ? null : memberId));
   };
 
   const handleQuickAction = (actionType: QuickActionType) => {
@@ -149,6 +158,18 @@ export default function HomePage() {
               />
             </div>
           )}
+          
+          {view === 'team' && (
+            <div className="bg-white/70 backdrop-blur-md rounded-3xl p-6 shadow-lg ring-1 ring-black/5 h-full overflow-hidden">
+              <TeamPage onMemberSelect={handleTeamMemberSelect} />
+            </div>
+          )}
+          
+          {view === 'reports' && (
+            <div className="bg-white/70 backdrop-blur-md rounded-3xl p-6 shadow-lg ring-1 ring-black/5 h-full overflow-hidden">
+              <ReportsPage />
+            </div>
+          )}
         </motion.section>
         
 
@@ -173,6 +194,12 @@ export default function HomePage() {
             <CompanyDetailPanel 
               companyName={activeCompany} 
               onClose={() => setActiveCompany(null)} 
+            />
+          )}
+          {activeTeamMemberId && (
+            <TeamMemberDetailPanel 
+              memberId={activeTeamMemberId} 
+              onClose={() => setActiveTeamMemberId(null)} 
             />
           )}
         </AnimatePresence>
