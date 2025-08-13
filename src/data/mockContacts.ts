@@ -1,4 +1,16 @@
-// src/types/contact.ts
+// Import the enhanced contacts data
+import { enhancedMockContactsPart1 } from './enhancedMockContacts-part1';
+import { enhancedMockContactsPart2 } from './enhancedMockContacts-part2';
+import { enhancedMockContactsPart3 } from './enhancedMockContacts-part3';
+
+// Combine all parts into one array
+export const mockContacts = [
+  ...enhancedMockContactsPart1,
+  ...enhancedMockContactsPart2,
+  ...enhancedMockContactsPart3
+];
+
+// Re-export types and configs for backward compatibility
 import { TrendingUp, TrendingDown, Minus, User, MessageCircle, Heart, Share2 } from 'lucide-react';
 
 export interface SocialPost {
@@ -150,6 +162,9 @@ export interface EnhancedContact {
     nextBestAction: string;
   };
 }
+
+// Backward-compatible type alias so existing imports `type Contact` keep working
+export type Contact = EnhancedContact;
 
 export const statusConfig = {
   hot: { color: 'bg-red-100 text-red-800 border-red-200', icon: TrendingUp, label: 'Hot' },

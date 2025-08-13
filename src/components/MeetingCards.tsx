@@ -6,6 +6,8 @@ import {
   ExternalLink,
   Info,
   RadioTower,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Card } from "./ui/card";
@@ -100,17 +102,17 @@ const platformIcons: Record<PlatformKey, PlatformIconInfo> = {
   slack: { icon: ExternalLink, color: "text-purple-600" },
 };
 const typeColors: Record<MeetingTypeKey, string> = {
-  oportunidad: "bg-green-100 text-green-700 border-green-200",
-  "follow-up": "bg-orange-100 text-orange-700 border-orange-200",
-  weekly: "bg-blue-100 text-blue-700 border-blue-200",
-  daily: "bg-purple-100 text-purple-700 border-purple-200",
-  discovery: "bg-pink-100 text-pink-700 border-pink-200",
-  cierre: "bg-red-100 text-red-700 border-red-200",
-  onboarding: "bg-teal-100 text-teal-700 border-teal-200",
-  renovacion: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  training: "bg-indigo-100 text-indigo-700 border-indigo-200",
-  quarterly: "bg-gray-100 text-gray-700 border-gray-200",
-  prospección: "bg-cyan-100 text-cyan-700 border-cyan-200",
+  oportunidad: "bg-gradient-to-br from-green-100 to-emerald-100 text-green-700 border-green-200/50 shadow-sm",
+  "follow-up": "bg-gradient-to-br from-orange-100 to-amber-100 text-orange-700 border-orange-200/50 shadow-sm",
+  weekly: "bg-gradient-to-br from-blue-100 to-sky-100 text-blue-700 border-blue-200/50 shadow-sm",
+  daily: "bg-gradient-to-br from-purple-100 to-violet-100 text-purple-700 border-purple-200/50 shadow-sm",
+  discovery: "bg-gradient-to-br from-pink-100 to-rose-100 text-pink-700 border-pink-200/50 shadow-sm",
+  cierre: "bg-gradient-to-br from-red-100 to-rose-100 text-red-700 border-red-200/50 shadow-sm",
+  onboarding: "bg-gradient-to-br from-teal-100 to-cyan-100 text-teal-700 border-teal-200/50 shadow-sm",
+  renovacion: "bg-gradient-to-br from-yellow-100 to-amber-100 text-yellow-700 border-yellow-200/50 shadow-sm",
+  training: "bg-gradient-to-br from-indigo-100 to-blue-100 text-indigo-700 border-indigo-200/50 shadow-sm",
+  quarterly: "bg-gradient-to-br from-gray-100 to-slate-100 text-gray-700 border-gray-200/50 shadow-sm",
+  prospección: "bg-gradient-to-br from-cyan-100 to-blue-100 text-cyan-700 border-cyan-200/50 shadow-sm",
 };
 
 export function MeetingCards({
@@ -134,27 +136,44 @@ export function MeetingCards({
   /* Empty state */
   if (meetings.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
-        <p>No meetings scheduled</p>
+      <div className="text-center py-12 text-gray-500">
+        <div className="bg-white/60 backdrop-blur-sm rounded-full p-8 mb-4 shadow-lg mx-auto w-fit">
+          <Calendar className="w-12 h-12 text-gray-400" />
+        </div>
+        <p className="text-lg font-medium mb-2">No Meetings Scheduled</p>
+        <p className="text-sm text-gray-400">Your calendar is clear for this day</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      {/* Date banner */}
-      <div className="mb-4">
-        <div className="inline-flex items-center bg-white/60 rounded-lg px-3 py-1.5 shadow-sm">
-          <Calendar className="w-4 h-4 mr-2 text-purple-600" />
-          <h3 className="text-sm font-medium text-gray-800">
-            Meetings for{" "}
-            {date.toLocaleDateString("en-US", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
-          </h3>
+      {/* Date banner - Premium Header */}
+      <div className="mb-6">
+        <div className="bg-gradient-to-br from-purple-50 via-purple-50 to-pink-50 rounded-xl p-4 shadow-lg border border-purple-100/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg p-2 shadow-md">
+                <Calendar className="w-5 h-5 text-white" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-bold text-gray-800">
+                  {date.toLocaleDateString("en-US", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
+                </h3>
+                <p className="text-sm text-purple-600">{meetings.length} meetings scheduled</p>
+              </div>
+            </div>
+            <div className="bg-white/70 backdrop-blur-sm rounded-lg px-3 py-1 shadow-sm">
+              <div className="flex items-center text-xs text-purple-600 font-medium">
+                <Sparkles className="w-3 h-3 mr-1" />
+                AI Ready
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -177,24 +196,26 @@ export function MeetingCards({
           <Card
             key={meeting.id}
             className={`
-              p-4 transition-all duration-300
+              p-5 transition-all duration-300 backdrop-blur-sm
               ${
                 isSelected
-                  ? "border-2 border-purple-500 bg-purple-50"
-                  : "border-2 border-transparent bg-white"
+                  ? "border-2 border-purple-400 bg-gradient-to-br from-purple-50 via-white to-pink-50 shadow-xl"
+                  : "border border-white/50 bg-white/80 hover:bg-white/90"
               }
-              ${!isSelected && isHighlighted ? "border-2 border-pink-400" : ""}
-              ${!isSelected ? "hover:shadow-md" : ""}
+              ${!isSelected && isHighlighted ? "border-2 border-pink-400 shadow-lg" : ""}
+              ${!isSelected ? "hover:shadow-lg hover:-translate-y-0.5" : ""}
             `}
           >
-            {/* Header */}
-            <div className="flex items-start justify-between gap-4 mb-2">
-              <div className="flex items-center space-x-2 flex-grow min-w-0">
-                <PlatformIcon
-                  className={`w-4 h-4 ${platformInfo.color} flex-shrink-0`}
-                />
+            {/* Header with enhanced styling */}
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="flex items-center space-x-3 flex-grow min-w-0">
+                <div className="bg-white/70 backdrop-blur-sm rounded-lg p-2 shadow-sm">
+                  <PlatformIcon
+                    className={`w-4 h-4 ${platformInfo.color} flex-shrink-0`}
+                  />
+                </div>
                 <h4
-                  className="text-sm text-gray-800 truncate"
+                  className="text-base font-semibold text-gray-800 truncate"
                   title={meeting.title}
                 >
                   {meeting.title}
@@ -202,8 +223,7 @@ export function MeetingCards({
               </div>
               <div className="flex-shrink-0">
                 <Badge
-                  variant="outline"
-                  className={`text-xxs ${typeColors[meeting.type]}`}
+                  className={`text-xs font-medium px-3 py-1 ${typeColors[meeting.type]}`}
                 >
                   {meeting.type}
                 </Badge>
@@ -211,66 +231,80 @@ export function MeetingCards({
             </div>
 
             {/* Description */}
-            <p className="text-xxs text-gray-600 mb-3">{meeting.description}</p>
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">{meeting.description}</p>
 
-            {/* Meta row */}
-            <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-1">
-                  <Clock className="w-3 h-3" />
-                  <span>{meeting.time}</span>
+            {/* Meta row with enhanced design */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center bg-gray-50/80 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-sm">
+                  <Clock className="w-4 h-4 text-gray-500 mr-2" />
+                  <span className="text-sm font-medium text-gray-700">{meeting.time}</span>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Users className="w-3 h-3" />
-                  <span>{meeting.participants.length}</span>
+                <div className="flex items-center bg-blue-50/80 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-sm">
+                  <Users className="w-4 h-4 text-blue-500 mr-2" />
+                  <span className="text-sm font-medium text-blue-700">{meeting.participants.length} participants</span>
                 </div>
               </div>
-              <span className="text-xs text-gray-400">
-                {meeting.duration} min
-              </span>
+              <div className="bg-purple-50/80 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-sm">
+                <span className="text-sm font-medium text-purple-700">
+                  {meeting.duration} min
+                </span>
+              </div>
             </div>
 
-            {/* Actions */}
-            <div className="border-t border-gray-100 pt-2 flex items-center justify-between">
-              {/* Left side */}
+            {/* Actions - Premium Design */}
+            <div className="border-t border-gray-200/50 pt-4 flex items-center justify-between">
+              {/* Left side - Join Button */}
               <div>
                 <Button
-                  variant="outline"
-                  size="sm"
                   className={`
-                    h-auto px-2 py-1 text-xs rounded-md
+                    px-4 py-2 rounded-lg font-medium transition-all duration-300 shadow-sm
                     ${
                       isJoinable
-                        ? "bg-green-100 border-green-300 text-green-700"
-                        : ""
+                        ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
                     }
                   `}
                   disabled={!isJoinable}
                 >
-                  <RadioTower className="w-3.5 h-3.5 mr-1.5" />
-                  Join
+                  {isJoinable ? (
+                    <>
+                      <Zap className="w-4 h-4 mr-2" />
+                      Join Now
+                    </>
+                  ) : (
+                    <>
+                      <RadioTower className="w-4 h-4 mr-2" />
+                      Join Meeting
+                    </>
+                  )}
                 </Button>
                 {!isJoinable && (
-                  <p className="text-xxs text-gray-400 mt-1">
-                    Activates 5 min before
+                  <p className="text-xs text-gray-400 mt-2 flex items-center">
+                    <Clock className="w-3 h-3 mr-1" />
+                    Available 5 min before start
                   </p>
                 )}
               </div>
 
-              {/* Right side */}
-              <div className="flex items-center space-x-1">
+              {/* Right side - Action Buttons */}
+              <div className="flex items-center space-x-2">
                 <Button
-                  variant="ghost"
-                  className="h-auto px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/70 backdrop-blur-sm border-gray-200/50 hover:bg-white/90 hover:shadow-md transition-all duration-200"
                   onClick={() => onInfoSelect(meeting.id)}
                 >
-                  <Info className="w-3.5 h-3.5 mr-1.5" /> Info
+                  <Info className="w-4 h-4 mr-1.5" /> 
+                  Details
                 </Button>
                 <Button
-                  className="h-auto px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-md"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                  size="sm"
                   onClick={() => onMeetingSelect(meeting.id)}
                 >
-                  <Users className="w-3.5 h-3.5 mr-1.5" /> Participants
+                  <Users className="w-4 h-4 mr-1.5" /> 
+                  Participants
                 </Button>
               </div>
             </div>

@@ -9,9 +9,15 @@ import {
   Users,
   Phone,
   Presentation,
+  Sparkles,
+  Star,
+  ArrowRight,
 } from 'lucide-react';
-import { Card } from './ui/card';
+import { Card, CardContent, CardHeader } from './ui/card';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { motion } from 'framer-motion';
+import { mockContacts } from '@/data/mockContacts';
 
 interface ActionPanelProps {
   participantId: string | null;
@@ -45,92 +51,111 @@ const actions: Action[] = [
   {
     id: 'simulate-demo',
     label: 'Simulate Demo',
-    description: 'Generate a personalized demo',
+    description: 'Generate a personalized demo presentation',
     icon: Presentation,
-    color: 'bg-blue-500',
+    color: 'from-blue-500',
     category: 'preparation',
   },
   {
     id: 'conversation-simulator',
     label: 'Simulate Conversation',
-    description: 'Practice the meeting with AI',
+    description: 'Practice the meeting with AI assistant',
     icon: MessageSquare,
-    color: 'bg-green-500',
+    color: 'from-green-500',
     category: 'preparation',
   },
   {
     id: 'email-sequence',
     label: 'Email Sequence',
-    description: 'Generate automatic follow-up',
+    description: 'Generate automatic follow-up campaigns',
     icon: Mail,
-    color: 'bg-purple-500',
+    color: 'from-purple-500',
     category: 'follow_up',
   },
   {
     id: 'schedule-meeting',
     label: 'Schedule Meeting',
-    description: 'Book the next appointment',
+    description: 'Book the next appointment intelligently',
     icon: Calendar,
-    color: 'bg-orange-500',
+    color: 'from-orange-500',
     category: 'follow_up',
   },
   {
     id: 'kpi-analysis',
     label: 'KPI Analysis',
-    description: 'Metrics and probabilities',
+    description: 'Analyze metrics and success probabilities',
     icon: TrendingUp,
-    color: 'bg-red-500',
+    color: 'from-red-500',
     category: 'analysis',
   },
   {
     id: 'generate-proposal',
     label: 'Generate Proposal',
-    description: 'Personalized proposal',
+    description: 'Create personalized business proposal',
     icon: FileText,
-    color: 'bg-teal-500',
+    color: 'from-teal-500',
     category: 'documents',
   },
   {
     id: 'objection-handling',
     label: 'Objection Handling',
-    description: 'Prepare responses',
+    description: 'Prepare responses to common objections',
     icon: Target,
-    color: 'bg-pink-500',
+    color: 'from-pink-500',
     category: 'preparation',
   },
   {
     id: 'team-briefing',
     label: 'Team Briefing',
-    description: 'Share insights',
+    description: 'Share insights with your team',
     icon: Users,
-    color: 'bg-indigo-500',
+    color: 'from-indigo-500',
     category: 'collaboration',
   },
   {
     id: 'cold-call-script',
     label: 'Call Script',
-    description: 'Personalized script',
+    description: 'Generate personalized calling script',
     icon: Phone,
-    color: 'bg-yellow-500',
+    color: 'from-yellow-500',
     category: 'preparation',
   },
   {
     id: 'competitive-analysis',
     label: 'Competitive Analysis',
-    description: 'Positioning vs. competitors',
+    description: 'Analyze positioning vs. competitors',
     icon: Zap,
-    color: 'bg-gray-500',
+    color: 'from-gray-500',
     category: 'analysis',
   },
 ];
 
 /* ---------- Category meta-data ---------- */
 const categories: Record<CategoryKey, CategoryInfo> = {
-  preparation: { label: 'Preparation', color: 'bg-blue-100 text-blue-700' },
-  follow_up: { label: 'Follow-up', color: 'bg-green-100 text-green-700' },
-  analysis: { label: 'Analysis', color: 'bg-purple-100 text-purple-700' },
-  documents: { label: 'Documents', color: 'bg-orange-100 text-orange-700' },
-  collaboration: { label: 'Collaboration', color: 'bg-pink-100 text-pink-700' },
+  preparation: { label: 'Preparation', color: 'bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 border-blue-300' },
+  follow_up: { label: 'Follow-up', color: 'bg-gradient-to-r from-green-100 to-green-200 text-green-800 border-green-300' },
+  analysis: { label: 'Analysis', color: 'bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300' },
+  documents: { label: 'Documents', color: 'bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 border-orange-300' },
+  collaboration: { label: 'Collaboration', color: 'bg-gradient-to-r from-pink-100 to-pink-200 text-pink-800 border-pink-300' },
+};
+
+// Enhanced participant-to-contact mapping
+const participantContactMapping: Record<string, string> = {
+  'participant-1': '1', // Sarah Chen (Stripe)
+  'participant-2': '2', // David Kim (Notion)
+  'participant-3': '3', // Rachel Green (Shopify)
+  'participant-4': '4', // Michael Thompson (Slack)
+  'participant-5': '5', // Lisa Wang (Figma)
+  'participant-6': '6', // James Wilson (Atlassian)
+  'participant-7': '7', // Emily Davis (Airbnb)
+  'participant-8': '8', // Alex Rodriguez (HubSpot),
+};
+
+// Helper function to get contact data
+const getContactData = (participantId: string | null) => {
+  if (!participantId) return null;
+  const contactId = participantContactMapping[participantId];
+  return mockContacts.find(c => c.id === contactId) || null;
 };
 
 export function ActionPanel({
@@ -138,12 +163,19 @@ export function ActionPanel({
   meetingId,
   onStartSimulation,
 }: ActionPanelProps) {
-  /* ---------- Empty state ---------- */
-  if (!participantId) {
+  const contactData = getContactData(participantId);
+
+  /* ---------- Enhanced Empty state ---------- */
+  if (!participantId || !contactData) {
     return (
-      <div className="text-center py-8 text-gray-500 h-full flex flex-col items-center justify-center">
-        <Zap className="w-12 h-12 mx-auto mb-3 opacity-30" />
-        <p>Select a participant to view actions</p>
+      <div className="text-center text-gray-500 h-full flex flex-col items-center justify-center p-4">
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-8 border border-white/20 text-center">
+          <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-full p-4 w-20 h-20 mx-auto mb-4">
+            <Zap className="w-12 h-12 text-purple-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">AI Actions</h3>
+          <p className="text-sm text-gray-600">Select a participant to view recommended actions</p>
+        </div>
       </div>
     );
   }
@@ -157,46 +189,139 @@ export function ActionPanel({
     }
   };
 
-  return (
-    <div className="h-full flex flex-col">
-      {/* --- AI recommendation banner --- */}
-      <div className="pt-4 flex-shrink-0">
-        <Card className="p-4 mb-4 bg-gradient-to-r from-purple-50 to-pink-50">
-          <div className="flex items-center space-x-2 mb-2">
-            <Zap className="w-4 h-4 text-purple-600" />
-            <h4 className="text-sm text-purple-800">AI Recommendation</h4>
-          </div>
-          <p className="text-xxs text-purple-700 mb-2 break-words">
-            Based on María’s technical profile and her skepticism toward complexity,
-            it’s recommended to prepare an **“Objection Handling”** focused on TCO
-            and ease of implementation, followed by **“Simulate Demo”** to keep the
-            flow straightforward and ROI-centric.
-          </p>
-        </Card>
-      </div>
+  // Generate personalized AI recommendation
+  const getPersonalizedRecommendation = () => {
+    const name = contactData.name.split(' ')[0];
+    const role = contactData.role.toLowerCase();
+    const company = contactData.company;
+    const score = contactData.score;
+    const status = contactData.status;
+    
+    if (status === 'hot' && score >= 80) {
+      return `${name} (${role} at ${company}) shows high engagement (${score}/100). Recommended: Start with "Simulate Demo" to capitalize on momentum, then follow with "Generate Proposal" for immediate next steps.`;
+    } else if (status === 'warm') {
+      return `${name} needs nurturing. Their ${role} position suggests focusing on "Objection Handling" and "KPI Analysis" to build confidence before moving to demo phase.`;
+    } else {
+      return `${name} requires relationship building. Begin with "Team Briefing" to understand their context, then "Cold Call Script" for structured outreach.`;
+    }
+  };
 
-      {/* --- Actions grid --- */}
-      <div className="flex-1 overflow-y-auto pr-2 min-h-0">
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-          {actions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Card
-                key={action.id}
-                className="p-4 hover:shadow-md transition-shadow cursor-pointer aspect-square flex flex-col justify-center items-center text-center"
-                onClick={() => handleAction(action.id)}
-              >
-                <div className={`mb-3 p-3 rounded-full ${action.color}`}>
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
-                <h4 className="text-sm font-semibold text-gray-800 mb-1">
-                  {action.label}
+  return (
+    <div className="h-full flex flex-col overflow-hidden p-4">
+      {/* Enhanced AI recommendation banner */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex-shrink-0"
+      >
+        <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white shadow-lg border-0">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-3">
+              <div className="bg-white/20 rounded-lg p-2">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold mb-2 flex items-center">
+                  AI Recommendation for {contactData.name}
+                  <Star className="w-4 h-4 ml-2 text-yellow-300 fill-current" />
                 </h4>
-                <p className="text-xxs text-gray-500">{action.description}</p>
-              </Card>
+                <p className="text-sm text-purple-100 leading-relaxed">
+                  {getPersonalizedRecommendation()}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Enhanced Actions grid */}
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {actions.map((action, index) => {
+            const Icon = action.icon;
+            const categoryInfo = categories[action.category];
+            
+            return (
+              <motion.div
+                key={action.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                className="group"
+              >
+                <Card
+                  className="h-full bg-white/80 backdrop-blur-sm border-white/20 shadow-lg hover:shadow-xl cursor-pointer transition-all duration-300 group-hover:bg-white/90"
+                  onClick={() => handleAction(action.id)}
+                >
+                  <CardContent className="p-4 h-full flex flex-col">
+                    {/* Header with icon and category */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`p-2 rounded-lg bg-gradient-to-br ${action.color} to-${action.color.split('-')[1]}-600`}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <Badge variant="outline" className={`text-xxs ${categoryInfo.color}`}>
+                        {categoryInfo.label}
+                      </Badge>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-sm text-gray-900 mb-2 group-hover:text-purple-700 transition-colors">
+                        {action.label}
+                      </h4>
+                      <p className="text-xs text-gray-600 leading-relaxed">
+                        {action.description}
+                      </p>
+                    </div>
+                    
+                    {/* Action indicator */}
+                    <div className="mt-3 pt-3 border-t border-gray-200/50 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Click to execute</span>
+                      <ArrowRight className="w-3 h-3 text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             );
           })}
         </div>
+        
+        {/* Quick Actions Section */}
+        <Card className="bg-white/80 backdrop-blur-sm border-white/20 shadow-lg">
+          <CardHeader className="pb-3">
+            <h4 className="font-semibold text-gray-900 flex items-center">
+              <Zap className="w-5 h-5 mr-2 text-purple-600" />
+              Quick Actions for {contactData.name}
+            </h4>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              <Button 
+                variant="outline" 
+                className="justify-start bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100"
+                onClick={() => handleAction('simulate-demo')}
+              >
+                <Presentation className="w-4 h-4 mr-2 text-blue-600" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-blue-700">Demo Now</div>
+                  <div className="text-xs text-blue-600">Start simulation</div>
+                </div>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="justify-start bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 hover:from-green-100 hover:to-emerald-100"
+                onClick={() => handleAction('conversation-simulator')}
+              >
+                <MessageSquare className="w-4 h-4 mr-2 text-green-600" />
+                <div className="text-left">
+                  <div className="text-sm font-medium text-green-700">Practice</div>
+                  <div className="text-xs text-green-600">Conversation sim</div>
+                </div>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

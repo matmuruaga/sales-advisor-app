@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { mockContacts } from '@/data/mockContacts';
+import { enhancedMockContacts as mockContacts } from '@/data/enhancedMockContacts';
 import { ContactRow } from './contacts/ContactRow';
 // Ya no importamos el Modal ni los Paneles aquí
 
