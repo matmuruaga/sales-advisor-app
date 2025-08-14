@@ -98,22 +98,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🔐 Attempting sign in for:', email)
       
-      // Test connectivity first
-      const { data: healthCheck, error: healthError } = await supabase
-        .from('organizations')
-        .select('count')
-        .limit(1)
+      // Create timeout promise (15 seconds)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Authentication timeout')), 15000)
+      })
       
-      if (healthError && healthError.message.includes('fetch')) {
-        console.error('❌ Connectivity issue:', healthError.message)
-        setLoading(false)
-        return { error: { message: 'Error de conectividad con Supabase. Verifica la configuración.' } }
+      // Test connectivity first with timeout
+      try {
+        const healthCheckPromise = supabase
+          .from('organizations')
+          .select('count')
+          .limit(1)
+        
+        const { data: healthCheck, error: healthError } = await Promise.race([
+          healthCheckPromise,
+          timeoutPromise
+        ]) as any
+        
+        if (healthError && healthError.message.includes('fetch')) {
+          console.error('❌ Connectivity issue:', healthError.message)
+          setLoading(false)
+          return { error: { message: 'Error de conectividad con Supabase. Verifica la configuración.' } }
+        }
+      } catch (timeoutError) {
+        console.error('⏱️ Health check timeout')
       }
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Sign in with timeout protection
+      const signInPromise = supabase.auth.signInWithPassword({
         email,
         password
       })
+      
+      const { data, error } = await Promise.race([
+        signInPromise,
+        timeoutPromise.then(() => ({ 
+          data: null, 
+          error: { message: 'Authentication timeout. Please try again.' } 
+        }))
+      ]) as any
       
       if (error) {
         console.error('❌ Sign in error:', error.message)
@@ -121,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error }
       }
       
-      if (data.user) {
+      if (data?.user) {
         console.log('✅ Sign in successful for user:', data.user.id)
         // Don't set loading to false here, let the auth state change handle it
         return { error: null }
@@ -132,7 +155,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('💥 Unexpected sign in error:', err)
       setLoading(false)
-      return { error: { message: 'Network error. Please check your connection and Supabase configuration.' } }
+      const errorMessage = err instanceof Error && err.message === 'Authentication timeout'
+        ? 'La autenticación tardó demasiado. Por favor intenta de nuevo.'
+        : 'Network error. Please check your connection and Supabase configuration.'
+      return { error: { message: errorMessage } }
     }
   }
 

@@ -23,8 +23,9 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKe
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce' // More secure auth flow
+    detectSessionInUrl: false, // Fixed: false for password-based auth
+    flowType: 'pkce', // More secure auth flow
+    redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined
   },
   // Add realtime configuration
   realtime: {
