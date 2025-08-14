@@ -159,8 +159,9 @@ export function ActionsPage() {
                 <div className="flex justify-center items-start pt-12">
                   <div className="w-full max-w-4xl">
                     <SmartActionComposer 
-                      category={activeCategory || 'all'}
-                      onActionCreate={(action) => console.log('Action created:', action)}
+                      activeCategory={activeCategory}
+                      bulkMode={isBulkMode}
+                      onActionSelect={(id) => console.log('Action selected:', id)}
                     />
                     
                     <button
@@ -181,8 +182,9 @@ export function ActionsPage() {
                   <div className={`${isAISidebarCollapsed ? 'col-span-11' : 'col-span-12 lg:col-span-8'} space-y-6 overflow-y-auto pr-2`}>
                     {/* Always Visible: Smart Action Composer */}
                     <SmartActionComposer 
-                      category={activeCategory || 'all'}
-                      onActionCreate={(action) => console.log('Action created:', action)}
+                      activeCategory={activeCategory}
+                      bulkMode={isBulkMode}
+                      onActionSelect={(id) => console.log('Action selected:', id)}
                     />
                     
                     {/* Progressive Disclosure: Advanced Tools */}
@@ -222,14 +224,15 @@ export function ActionsPage() {
                               
                               {/* Active Actions Dashboard */}
                               <ActiveActionsDashboard 
-                                category={activeCategory || 'all'}
-                                isBulkMode={isBulkMode}
+                                bulkMode={isBulkMode}
                                 selectedActions={selectedActions}
-                                onSelectionChange={setSelectedActions}
+                                onActionSelect={(id) => {
+                                  setSelectedActions(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+                                }}
                               />
                               
                               {/* Success Metrics Panel */}
-                              <SuccessMetricsPanel category={activeCategory || 'all'} />
+                              <SuccessMetricsPanel />
                             </div>
                           </motion.div>
                         )}
@@ -308,11 +311,7 @@ export function ActionsPage() {
         <BulkActionBar
           selectedCount={selectedActions.length}
           onExecute={() => handleBulkAction('execute')}
-          onSchedule={() => handleBulkAction('schedule')}
-          onDuplicate={() => handleBulkAction('duplicate')}
-          onReassign={() => handleBulkAction('reassign')}
-          onDelete={() => handleBulkAction('delete')}
-          onCancel={() => {
+          onClear={() => {
             setSelectedActions([]);
             setIsBulkMode(false);
           }}

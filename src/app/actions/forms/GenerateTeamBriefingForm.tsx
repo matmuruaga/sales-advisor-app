@@ -13,9 +13,9 @@ const mockUpcomingMeetings = [
 ];
 
 const mockTeamMembers = [
-    { id: 'user-1', name: 'Jessica Smith (Sales)' },
-    { id: 'user-2', name: 'Mark Evans (Sales Engineer)' },
-    { id: 'user-3', name: 'Alan Wake (Manager)' },
+  { id: 'user-1', name: 'Jessica Smith (Sales)', role: 'Sales' },
+  { id: 'user-2', name: 'Mark Evans (Sales Engineer)', role: 'Sales Engineer' },
+  { id: 'user-3', name: 'Alan Wake (Manager)', role: 'Manager' },
 ];
 
 const briefingSections = [

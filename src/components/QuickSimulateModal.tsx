@@ -84,6 +84,12 @@ export function QuickSimulateModal({
     selectedGoal: "",
     temperature: 5,
     selectedPersonalities: [] as string[],
+    pace: 5,
+    focus: 5,
+    technicality: 5,
+    riskAversion: 5,
+    formality: 5,
+    initialContext: "",
   });
 
   const [script, setScript] =

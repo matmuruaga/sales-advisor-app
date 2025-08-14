@@ -286,7 +286,7 @@ const ReportGrid = ({ reports, viewMode }: { reports: any[], viewMode: 'grid' | 
                       </div>
                     </div>
                     <div className="flex items-center space-x-6">
-                      {report.metrics.slice(0, 2).map((metric, idx) => (
+                      {report.metrics.slice(0, 2).map((metric: { label: string; value: string; trend?: 'up' | 'down' | 'stable' }, idx: number) => (
                         <div key={idx} className="text-right">
                           <p className="text-xs text-gray-500">{metric.label}</p>
                           <div className="flex items-center space-x-1">
@@ -347,7 +347,7 @@ const ReportGrid = ({ reports, viewMode }: { reports: any[], viewMode: 'grid' | 
               <CardContent className="space-y-3">
                 {/* Key Metrics */}
                 <div className="grid grid-cols-2 gap-2">
-                  {report.metrics.map((metric, idx) => (
+                  {report.metrics.map((metric: { label: string; value: string; trend?: 'up' | 'down' | 'stable'; trendValue?: string }, idx: number) => (
                     <div key={idx} className="px-2 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
                       <p className="text-xs text-gray-600">{metric.label}</p>
                       <div className="flex items-center justify-between mt-0.5">
@@ -365,7 +365,7 @@ const ReportGrid = ({ reports, viewMode }: { reports: any[], viewMode: 'grid' | 
 
                 {/* Tags */}
                 <div className="flex flex-wrap gap-1 pt-2 border-t border-gray-100">
-                  {report.tags.slice(0, 3).map(tag => (
+                  {report.tags.slice(0, 3).map((tag: string) => (
                     <Badge key={tag} variant="outline" className="text-xs bg-gray-50 text-gray-600 border-gray-200">
                       {tag}
                     </Badge>

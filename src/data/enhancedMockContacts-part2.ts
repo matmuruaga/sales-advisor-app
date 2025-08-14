@@ -265,7 +265,7 @@ export const enhancedMockContactsPart2: Contact[] = [
         date: '2025-07-28',
         engagement: { likes: 284, comments: 67, shares: 42 },
         type: 'text',
-        sentiment: 'very-positive'
+        sentiment: 'positive'
       },
       {
         id: 'p2',
@@ -292,7 +292,7 @@ export const enhancedMockContactsPart2: Contact[] = [
         date: '2025-07-29',
         engagement: { likes: 127, comments: 23 },
         type: 'image',
-        sentiment: 'very-positive'
+        sentiment: 'positive'
       }
     ],
     
@@ -305,7 +305,7 @@ export const enhancedMockContactsPart2: Contact[] = [
         comment: 'Congrats Roberto! Your team\'s execution has been incredible. Excited to be part of this journey.',
         date: '2025-07-28',
         context: 'Celebration post about Series A funding',
-        sentiment: 'very-positive'
+        sentiment: 'positive'
       },
       {
         id: 'c2',
@@ -329,7 +329,7 @@ export const enhancedMockContactsPart2: Contact[] = [
     
     // Sentiment Analysis
     sentiment: {
-      overall: 'very-positive',
+      overall: 'positive',
       aboutOurCompany: 'positive',
       aboutOurIndustry: 'positive',
       recentTrend: 'improving',

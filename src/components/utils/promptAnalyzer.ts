@@ -262,7 +262,7 @@ export class PromptAnalyzer {
       pattern.lastIndex = 0; // Reset regex
     }
     
-    return [...new Set(painPoints)]; // Remove duplicates
+    return Array.from(new Set(painPoints)); // Remove duplicates
   }
 
   private static extractBudget(prompt: string): string | undefined {
@@ -308,9 +308,9 @@ export class PromptAnalyzer {
     for (const timePattern of this.timePatterns) {
       const match = prompt.match(timePattern.pattern);
       if (match) {
-        const days = timePattern.days === 'dynamic' ? parseInt(match[1]) : timePattern.days;
+        const days = timePattern.days === 'dynamic' ? parseInt(match[1]) : Number(timePattern.days);
         const date = new Date();
-        date.setDate(date.getDate() + days);
+        date.setDate(date.getDate() + Number(days));
         
         let time: string | undefined;
         if (timePattern.extractTime && match.length > 1) {
