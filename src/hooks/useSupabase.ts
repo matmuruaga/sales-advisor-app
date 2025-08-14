@@ -1,13 +1,7 @@
 // src/hooks/useSupabase.ts
-import { createClient } from '@supabase/supabase-js';
-import { useMemo } from 'react';
-import { type User, type Organization } from '@/lib/supabase';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+import { supabase, type User, type Organization } from '@/lib/supabase';
 
 export const useSupabase = () => {
-  const supabase = useMemo(() => createClient(supabaseUrl, supabaseAnonKey), []);
   
   // Mock user and organization data for development
   // En producción, esto debería venir del contexto de autenticación real

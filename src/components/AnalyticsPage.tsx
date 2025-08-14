@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart3,
@@ -47,6 +47,11 @@ import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Input } from "./ui/input";
 import { Progress } from "./ui/progress";
+import { DateRangePicker } from './DateRangePicker';
+import { useAnalytics, useDateFilter, useKPIMetrics, useTeamPerformance, useAnalyticsTrends } from '../hooks/useAnalytics';
+import { Skeleton } from './ui/skeleton';
+import { Alert, AlertDescription } from './ui/alert';
+import { RefreshCw } from 'lucide-react';
 
 // KPI Card Component
 const KPICard = ({ 

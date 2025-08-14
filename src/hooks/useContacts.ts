@@ -1,5 +1,6 @@
 // src/hooks/useContacts.ts
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import { useSupabase, Database } from './useSupabase';
 
 type Contact = Database['public']['Tables']['contacts']['Row'] & {
@@ -19,7 +20,6 @@ export const useContacts = (filters?: ContactFilters) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = useSupabase();
 
   const fetchContacts = async () => {
     try {
@@ -170,7 +170,6 @@ export const useContact = (contactId: string) => {
   const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = useSupabase();
 
   useEffect(() => {
     if (!contactId) return;
@@ -218,7 +217,6 @@ export const useContactStats = () => {
     totalPipelineValue: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = useSupabase();
 
   useEffect(() => {
     const fetchStats = async () => {

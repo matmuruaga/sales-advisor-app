@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, QuickActionType } from "@/components/Calendar"; // Importar el nuevo tipo
 import { MeetingTimeline } from "@/components/MeetingTimeline";
 import { AppHeader } from "@/components/AppHeader";
-import { AnalyticsPage } from "@/components/AnalyticsPage";
+import { AnalyticsPageNew as AnalyticsPage } from "@/components/AnalyticsPageNew";
 import { ActionsPage } from "@/components/ActionsPage";
 import { AgentCommandPalette } from "@/components/AgentCommandPalette";
 import { CompanyPage } from "@/components/CompanyPage";

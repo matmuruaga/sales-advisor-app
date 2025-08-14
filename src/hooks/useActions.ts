@@ -1,5 +1,6 @@
 // src/hooks/useActions.ts
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import { useSupabase, Database } from './useSupabase';
 
 type ActionCategory = Database['public']['Tables']['action_categories']['Row'];
@@ -15,7 +16,6 @@ export const useActionCategories = () => {
   const [categories, setCategories] = useState<ActionCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = useSupabase();
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -49,7 +49,6 @@ export const useAvailableActions = (categoryId?: string) => {
   const [actions, setActions] = useState<AvailableAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = useSupabase();
 
   useEffect(() => {
     const fetchActions = async () => {
@@ -89,7 +88,6 @@ export const useActionHistory = (limit: number = 50) => {
   const [history, setHistory] = useState<ActionHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = useSupabase();
 
   const fetchHistory = async () => {
     try {
@@ -194,7 +192,6 @@ export const useActionStats = (timeframe: 'day' | 'week' | 'month' = 'week') => 
     popularActions: Array<{ action: string; count: number }>;
   } | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = useSupabase();
 
   useEffect(() => {
     const fetchStats = async () => {

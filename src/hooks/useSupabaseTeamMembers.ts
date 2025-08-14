@@ -1,5 +1,6 @@
 // src/hooks/useSupabaseTeamMembers.ts
 import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import { useSupabase } from './useSupabase';
 import { generateMockTeamMembers, calculateMockTeamMetrics } from '@/lib/mockTeamData';
 
@@ -49,7 +50,7 @@ export const useSupabaseTeamMembers = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = useSupabase();
+  const { user, organization } = useSupabase();
 
   const fetchTeamMembers = async () => {
     try {
@@ -73,7 +74,7 @@ export const useSupabaseTeamMembers = () => {
       const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('*')
-        .eq('organization_id', '47fba630-b113-4fe9-b68f-947d79c09fb2')
+        .eq('organization_id', organization.id)
         .in('role', ['rep', 'bdr', 'manager']);
 
       if (usersError) {
@@ -85,7 +86,7 @@ export const useSupabaseTeamMembers = () => {
       const { data: performanceData, error: perfError } = await supabase
         .from('user_performance')
         .select('*')
-        .eq('organization_id', '47fba630-b113-4fe9-b68f-947d79c09fb2')
+        .eq('organization_id', organization.id)
         .lte('period_start', currentPeriodEnd.toISOString().split('T')[0])
         .gte('period_end', currentPeriodStart.toISOString().split('T')[0]);
 
@@ -197,9 +198,10 @@ export const useSupabaseTeamMembers = () => {
     fetchTeamMembers();
     
     // Set up real-time subscription for performance updates
-    const channel = supabase
+    const subscription = supabase
       .channel('team_performance_changes')
-      .on('postgres_changes', 
+      .on(
+        'postgres_changes',
         { 
           event: '*', 
           schema: 'public', 
@@ -213,7 +215,8 @@ export const useSupabaseTeamMembers = () => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      console.log('🧹 Cleaning up team performance subscription');
+      subscription.unsubscribe();
     };
   }, []);
 
