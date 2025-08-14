@@ -77,8 +77,7 @@ export function useSupabaseActions(options: UseSupabaseActionsOptions = {}) {
             *,
             user:users(*),
             contact:contacts(*),
-            company:companies(*),
-            ${includeAnalytics ? 'analytics:action_analytics(*)' : ''}
+            company:companies(*)${includeAnalytics ? ',analytics:action_analytics(*)' : ''}
           `
           : '*'
       )
