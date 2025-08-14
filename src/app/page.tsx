@@ -21,7 +21,19 @@ import { ReportsPage } from "@/components/ReportsPage";
 // 2. Importar el nuevo modal unificado
 import { QuickActionPromptModal } from "@/components/QuickActionPromptModal";
 
-const mockMeetings: Record<string, any[]> = {
+interface Meeting {
+  id: string;
+  title: string;
+  description: string;
+  time: string;
+  dateTime: string;
+  duration: string;
+  platform: "google-meet" | "teams" | "zoom";
+  type: "opportunity" | "follow-up" | "weekly";
+  participants: string[];
+}
+
+const mockMeetings: Record<string, Meeting[]> = {
   "2025-07-17": [
     {
       id: "meeting-1",

@@ -20,11 +20,6 @@ const mockLeads = [
   { id: 'participant-3', name: 'Ana López (VP Sales, ClientX)' },
 ];
 
-const meetingTypes = [
-  { id: 'discovery', label: 'Discovery' },
-  { id: 'demo', label: 'Product Demo' },
-  { id: 'proposal-review', label: 'Proposal Review' },
-];
 
 const timeSlots = Array.from({ length: 18 }, (_, i) => {
     const hour = Math.floor(i / 2) + 9;

@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * API endpoint para recrear el usuario admin
  * POST /api/fix-admin-user
  */
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Datos del usuario admin
     const email = 'matias@elevaitelabs.io';

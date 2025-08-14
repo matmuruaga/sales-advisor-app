@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { availableActions } from "@/data/availableActions";
 import { ActionHistoryInstance } from "@/data/actionHistory";
-import { Target, Calendar, User, FileText, TrendingUp, Milestone } from "lucide-react";
+import { Target, Calendar, FileText, TrendingUp, Milestone } from "lucide-react";
 
 interface AiSummaryProps {
   instance: ActionHistoryInstance;
