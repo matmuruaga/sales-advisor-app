@@ -44,6 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUserProfile = async (authUser: SupabaseUser) => {
     try {
+      console.log('👤 Loading user profile for:', authUser.id)
+      
       // Cargar perfil del usuario desde la tabla users
       const { data: profile, error: profileError } = await supabase
         .from('users')
@@ -52,9 +54,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single()
 
       if (profileError) {
-        console.error('Error loading user profile:', profileError)
-        return authUser
+        console.error('❌ Error loading user profile:', profileError.message)
+        // Return auth user without profile if profile doesn't exist
+        return {
+          ...authUser,
+          profile: null,
+          organization: undefined
+        }
       }
+
+      console.log('✅ User profile loaded:', profile.email, profile.role)
 
       // Cargar información de la organización
       const { data: organization, error: orgError } = await supabase
@@ -64,7 +73,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single()
 
       if (orgError) {
-        console.error('Error loading organization:', orgError)
+        console.error('⚠️ Error loading organization:', orgError.message)
+      } else {
+        console.log('🏢 Organization loaded:', organization.name)
       }
 
       return {
@@ -73,19 +84,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         organization: organization || undefined
       }
     } catch (error) {
-      console.error('Error loading user data:', error)
-      return authUser
+      console.error('💥 Unexpected error loading user data:', error)
+      return {
+        ...authUser,
+        profile: null,
+        organization: undefined
+      }
     }
   }
 
   const signIn = async (email: string, password: string) => {
     setLoading(true)
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
-    setLoading(false)
-    return { error }
+    try {
+      console.log('🔐 Attempting sign in for:', email)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+      
+      if (error) {
+        console.error('❌ Sign in error:', error.message)
+        setLoading(false)
+        return { error }
+      }
+      
+      if (data.user) {
+        console.log('✅ Sign in successful for user:', data.user.id)
+      }
+      
+      setLoading(false)
+      return { error: null }
+    } catch (err) {
+      console.error('💥 Unexpected sign in error:', err)
+      setLoading(false)
+      return { error: { message: 'Network error. Please check your connection.' } }
+    }
   }
 
   const signOut = async () => {
@@ -96,19 +129,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    let mounted = true
+
     // Obtener sesión inicial
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session)
-      if (session?.user) {
-        const enrichedUser = await loadUserProfile(session.user)
-        setUser(enrichedUser)
+    const initializeAuth = async () => {
+      try {
+        console.log('🚀 Initializing authentication...')
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        if (error) {
+          console.error('❌ Error getting session:', error.message)
+          if (mounted) {
+            setSession(null)
+            setUser(null)
+            setLoading(false)
+          }
+          return
+        }
+
+        if (mounted) {
+          setSession(session)
+          if (session?.user) {
+            console.log('✅ Session found for user:', session.user.email)
+            const enrichedUser = await loadUserProfile(session.user)
+            setUser(enrichedUser)
+          } else {
+            console.log('ℹ️ No active session found')
+          }
+          setLoading(false)
+        }
+      } catch (err) {
+        console.error('💥 Unexpected auth initialization error:', err)
+        if (mounted) {
+          setSession(null)
+          setUser(null)
+          setLoading(false)
+        }
       }
-      setLoading(false)
-    })
+    }
+
+    initializeAuth()
 
     // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('🔄 Auth state changed:', event, session?.user?.email || 'no user')
+        
+        if (!mounted) return
+
         setSession(session)
         
         if (session?.user) {
@@ -122,7 +190,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const value = {

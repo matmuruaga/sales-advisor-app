@@ -32,22 +32,28 @@ export default function LoginPage() {
     setError('')
 
     try {
+      console.log('🔐 Login attempt for:', email)
       const { error } = await signIn(email, password)
       
       if (error) {
+        console.error('❌ Login error:', error)
         if (error.message.includes('Invalid login credentials')) {
-          setError('Email o contraseña incorrectos')
+          setError('Email o contraseña incorrectos. Verifica tus datos.')
         } else if (error.message.includes('Email not confirmed')) {
           setError('Por favor confirma tu email antes de iniciar sesión')
+        } else if (error.message.includes('Network error')) {
+          setError('Error de conexión. Verifica tu internet y la configuración de Supabase.')
         } else {
-          setError('Error al iniciar sesión. Inténtalo de nuevo.')
+          setError(`Error al iniciar sesión: ${error.message}`)
         }
       } else {
+        console.log('✅ Login successful, redirecting...')
         // El contexto de auth manejará la redirección
         router.push('/')
       }
     } catch (err) {
-      setError('Error de conexión. Inténtalo de nuevo.')
+      console.error('💥 Unexpected login error:', err)
+      setError(`Error de conexión: ${(err as Error).message}`)
     } finally {
       setLoading(false)
     }
