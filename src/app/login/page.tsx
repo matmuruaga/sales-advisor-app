@@ -43,13 +43,14 @@ export default function LoginPage() {
           setError('Por favor confirma tu email antes de iniciar sesión')
         } else if (error.message.includes('Network error')) {
           setError('Error de conexión. Verifica tu internet y la configuración de Supabase.')
+        } else if (error.message.includes('fetch')) {
+          setError('Error de conectividad. Verifica la configuración de Supabase y los redirect URLs.')
         } else {
           setError(`Error al iniciar sesión: ${error.message}`)
         }
       } else {
-        console.log('✅ Login successful, redirecting...')
-        // El contexto de auth manejará la redirección
-        router.push('/')
+        console.log('✅ Login successful, user will be redirected by auth context...')
+        // No forzar redirect aquí, dejar que AuthContext maneje el estado
       }
     } catch (err) {
       console.error('💥 Unexpected login error:', err)

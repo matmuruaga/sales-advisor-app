@@ -97,6 +97,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     try {
       console.log('🔐 Attempting sign in for:', email)
+      
+      // Test connectivity first
+      const { data: healthCheck, error: healthError } = await supabase
+        .from('organizations')
+        .select('count')
+        .limit(1)
+      
+      if (healthError && healthError.message.includes('fetch')) {
+        console.error('❌ Connectivity issue:', healthError.message)
+        setLoading(false)
+        return { error: { message: 'Error de conectividad con Supabase. Verifica la configuración.' } }
+      }
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -110,6 +123,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (data.user) {
         console.log('✅ Sign in successful for user:', data.user.id)
+        // Don't set loading to false here, let the auth state change handle it
+        return { error: null }
       }
       
       setLoading(false)
@@ -117,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('💥 Unexpected sign in error:', err)
       setLoading(false)
-      return { error: { message: 'Network error. Please check your connection.' } }
+      return { error: { message: 'Network error. Please check your connection and Supabase configuration.' } }
     }
   }
 

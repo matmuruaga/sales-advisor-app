@@ -10,6 +10,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
+// Get app URL for production/development
+const getAppUrl = () => {
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+}
+
 // Create Supabase client with enhanced configuration for production
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
