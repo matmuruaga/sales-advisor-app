@@ -17,7 +17,7 @@ import { ConversationSimulator } from './ConversationSimulator';
 // Importar los formularios existentes
 import { ScheduleMeetingForm } from '@/app/actions/forms/ScheduleMeetingForm';
 import { GenerateCallScriptForm } from '@/app/actions/forms/GenerateCallScriptForm';
-import { GenerateProposalForm } from '@/components/actions/forms/GenerateProposalForm';
+import { GenerateProposalForm } from '@/app/actions/forms/GenerateProposalForm';
 import { SimulationConfigForm } from '@/components/actions/forms/SimulationConfigForm';
 
 interface QuickActionPromptModalProps {
@@ -257,9 +257,9 @@ export const QuickActionPromptModal = ({ isOpen, onClose, actionType }: QuickAct
   const renderActionForm = () => {
     switch (actionType) {
       case 'schedule':
-        return <ScheduleMeetingForm processedData={processedData} />;
+        return <ScheduleMeetingForm />;
       case 'call':
-        return <GenerateCallScriptForm processedData={processedData} />;
+        return <GenerateCallScriptForm />;
       case 'simulate':
         return <SimulationConfigForm processedData={processedData} />;
       default:

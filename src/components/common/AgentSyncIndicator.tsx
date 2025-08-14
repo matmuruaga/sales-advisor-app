@@ -15,7 +15,7 @@ const wave = {
     ease: "linear",
     repeat: Infinity,
     repeatType: "loop",
-  },
+  } as any,
 };
 
 export const AgentSyncIndicator = () => (
@@ -35,7 +35,7 @@ export const AgentSyncIndicator = () => (
     <motion.div
       {...wave}
       className="absolute h-3 w-3 rounded-full border-2 border-purple-500"
-      transition={{ ...wave.transition, delay: WAVE_DURATION / 2 }}
+      transition={{ ...(wave.transition as any), delay: WAVE_DURATION / 2 }}
     />
 
     {/* Punto central */}

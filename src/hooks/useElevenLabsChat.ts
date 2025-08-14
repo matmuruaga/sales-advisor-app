@@ -65,12 +65,12 @@ export const useElevenLabsChat = (config: ElevenLabsChatConfig) => {
         messageText = message;
       } else if (message && typeof message === 'object') {
         // Si es un objeto, buscar la propiedad que contiene el texto
-        if ('message' in message && typeof message.message === 'string') {
-          messageText = message.message;
-        } else if ('text' in message && typeof message.text === 'string') {
-          messageText = message.text;
-        } else if ('content' in message && typeof message.content === 'string') {
-          messageText = message.content;
+        if ('message' in message && typeof (message as any).message === 'string') {
+          messageText = (message as any).message;
+        } else if ('text' in message && typeof (message as any).text === 'string') {
+          messageText = (message as any).text;
+        } else if ('content' in message && typeof (message as any).content === 'string') {
+          messageText = (message as any).content;
         } else {
           // Si no encontramos el texto, usar JSON.stringify como fallback
           console.warn('⚠️ Estructura de mensaje inesperada:', message);
@@ -102,11 +102,12 @@ export const useElevenLabsChat = (config: ElevenLabsChatConfig) => {
       }, 100);
     },
     
-    onError: (error) => {
+    onError: (error: unknown) => {
       console.error('❌ Error en chat:', error);
+      const message = error && typeof error === 'object' && 'message' in error ? String((error as any).message) : 'Error de conexión';
       setState(prev => ({ 
         ...prev, 
-        error: typeof error === 'string' ? error : error?.message || 'Error de conexión',
+        error: message,
         isLoading: false 
       }));
       isProcessingMessage.current = false;
@@ -129,6 +130,7 @@ export const useElevenLabsChat = (config: ElevenLabsChatConfig) => {
       console.log('🚀 Iniciando sesión con agente:', config.agentId);
       await conversation.startSession({
         agentId: config.agentId,
+        connectionType: 'websocket',
       });
     } catch (error) {
       console.error('❌ Error iniciando sesión:', error);

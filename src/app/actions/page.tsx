@@ -357,7 +357,7 @@ export default function ActionsPage() {
                       exit={{ opacity: 0, x: -20 }}
                       transition={{ duration: 0.3 }}
                     >
-                      <CompactAIRecommendations activeCategory={activeCategory} />
+                      <CompactAIRecommendations category={activeCategory ?? ''} onExpand={() => setSidebarCollapsed(false)} />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -367,10 +367,7 @@ export default function ActionsPage() {
         </div>
 
         {/* Floating Action Menu - Available in focus mode */}
-        <FloatingActionMenu 
-          onActionSelect={handleFloatingAction}
-          isVisible={focusMode}
-        />
+        <FloatingActionMenu onAction={handleFloatingAction} />
       </div>
     </div>
   );

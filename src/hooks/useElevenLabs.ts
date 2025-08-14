@@ -51,11 +51,12 @@ export const useElevenLabs = (config: ElevenLabsConfig) => {
       console.log('📩 Message received:', message);
       // Aquí puedes manejar mensajes si necesitas
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       console.error('❌ Conversation error:', error);
+      const message = error && typeof error === 'object' && 'message' in error ? String((error as any).message) : 'Conversation error occurred';
       setState(prev => ({ 
         ...prev, 
-        error: error.message || 'Conversation error occurred',
+        error: message,
         isConnected: false,
         isConnecting: false
       }));
@@ -112,6 +113,7 @@ export const useElevenLabs = (config: ElevenLabsConfig) => {
       // Iniciar la sesión con el agentId
       const conversationId = await conversation.startSession({
         agentId: config.agentId,
+        connectionType: 'websocket',
       });
 
       console.log('✅ Conversation started with ID:', conversationId);

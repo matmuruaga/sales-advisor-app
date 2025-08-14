@@ -14,10 +14,7 @@ export type QuickActionType = 'schedule' | 'simulate' | 'call' | 'nested';
 interface CalendarProps {
   selectedDate: Date | null;
   onDateSelect: (date: Date) => void;
-  onScheduleMeeting: () => void;
-  onSimulateConversation: () => void;
-  onGenerateCallScript: () => void;
-  onViewNestedMeetings: () => void;
+  onQuickAction: (type: QuickActionType) => void;
 }
 
 // --- DATA UPDATED TO JULY 2025 ---
@@ -61,10 +58,6 @@ export function Calendar({
   selectedDate,
   onDateSelect,
   onQuickAction,
-  onScheduleMeeting,
-  onSimulateConversation,
-  onGenerateCallScript,
-  onViewNestedMeetings,
 }: CalendarProps) {
   // --- INITIAL MONTH CHANGED TO JULY 2025 ---
   const [currentMonth, setCurrentMonth] = useState(new Date(2025, 6));
@@ -214,21 +207,25 @@ export function Calendar({
             <QuickActionButton
               icon={CalendarIcon}
               label="Schedule Meeting"
+              gradient="from-purple-400 to-purple-600"
               onClick={() => onQuickAction('schedule')}
             />
             <QuickActionButton
               icon={MessageSquare}
               label="Simulate Conversation"
+              gradient="from-blue-400 to-blue-600"
               onClick={() => onQuickAction('simulate')}
             />
             <QuickActionButton
               icon={Phone}
               label="Call Script"
+              gradient="from-green-400 to-green-600"
               onClick={() => onQuickAction('call')}
             />
             <QuickActionButton
               icon={GitBranch}
               label="Nested Meetings"
+              gradient="from-orange-400 to-orange-600"
               onClick={() => onQuickAction('nested')}
             />
           </div>

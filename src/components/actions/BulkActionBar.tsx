@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import { 
   Play, 
   Pause, 
-  Schedule, 
   Copy,
   Trash2,
   Archive,
