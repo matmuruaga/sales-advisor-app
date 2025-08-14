@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { mockTeamMembers } from '@/data/mockTeamMembers';
+import { useSupabaseTeamMembers } from '@/hooks/useSupabaseTeamMembers';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
@@ -24,7 +24,8 @@ interface TeamMemberDetailPanelProps {
 
 export const TeamMemberDetailPanel = ({ memberId, onClose }: TeamMemberDetailPanelProps) => {
   const [activeTab, setActiveTab] = useState('performance');
-  const member = mockTeamMembers.find(m => m.id === memberId);
+  const { teamMembers, loading } = useSupabaseTeamMembers();
+  const member = teamMembers.find(m => m.id === memberId);
 
   // Handle Escape key press
   useEffect(() => {
@@ -37,6 +38,32 @@ export const TeamMemberDetailPanel = ({ memberId, onClose }: TeamMemberDetailPan
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [onClose]);
+
+  // Show loading state while data loads
+  if (loading) {
+    return (
+      <>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/30 z-[59]"
+          onClick={onClose}
+        />
+        <motion.div
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-[60] flex items-center justify-center"
+        >
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
+            <p className="text-sm text-gray-500">Loading team member...</p>
+          </div>
+        </motion.div>
+      </>
+    );
+  }
 
   if (!member) return null;
 

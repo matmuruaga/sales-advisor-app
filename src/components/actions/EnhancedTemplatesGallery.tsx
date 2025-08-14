@@ -28,100 +28,59 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { quickActionTemplates } from '@/data/quickActionTemplates';
+import { useSupabaseActions } from '@/hooks/useSupabaseActions';
+import { type ActionTemplate } from '@/lib/supabase';
 
 interface EnhancedTemplatesGalleryProps {
   category?: string;
   onTemplateSelect?: (template: any) => void;
 }
 
-interface TemplateCard {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  successRate: number;
-  avgTime: string;
-  icon: React.ElementType;
-  tags: string[];
-  prompt: string;
-  usageCount: number;
-  lastUsed?: string;
-  timesSaved?: number;
-}
-
-// Enhanced template data
-const enhancedTemplates: TemplateCard[] = [
-  {
-    id: 'demo-cto',
-    title: 'Demo Meeting with CTO',
-    description: 'High-value technical demonstration for decision makers',
-    category: 'schedule',
-    difficulty: 'intermediate',
-    successRate: 89,
-    avgTime: '25 min',
-    icon: Calendar,
-    tags: ['demo', 'technical', 'c-level'],
-    prompt: 'Prepare a technical demo for a CTO...',
-    usageCount: 156,
-    lastUsed: '2 hours ago',
-    timesSaved: 45
-  },
-  {
-    id: 'follow-up-urgent',
-    title: 'Follow-up Call - High Priority',
-    description: 'Urgent follow-up for hot prospects with budget',
-    category: 'schedule',
-    difficulty: 'beginner',
-    successRate: 94,
-    avgTime: '15 min',
-    icon: Target,
-    tags: ['follow-up', 'urgent', 'budget'],
-    prompt: 'Schedule urgent follow-up...',
-    usageCount: 203,
-    lastUsed: '1 day ago',
-    timesSaved: 30
-  },
-  {
-    id: 'cold-outreach-cto',
-    title: 'Cold Outreach - CTO',
-    description: 'Technical cold call script for CTOs',
-    category: 'call',
-    difficulty: 'advanced',
-    successRate: 67,
-    avgTime: '20 min',
-    icon: Phone,
-    tags: ['cold-call', 'technical', 'cto'],
-    prompt: 'Cold call script for CTO...',
-    usageCount: 78,
-    lastUsed: '5 hours ago',
-    timesSaved: 25
-  },
-  {
-    id: 'pricing-objection',
-    title: 'Pricing Objection Call',
-    description: 'Handle price concerns with value-based messaging',
-    category: 'call',
-    difficulty: 'intermediate',
-    successRate: 82,
-    avgTime: '35 min',
-    icon: TrendingUp,
-    tags: ['objection', 'pricing', 'value'],
-    prompt: 'Handle pricing objections...',
-    usageCount: 134,
-    lastUsed: '1 hour ago',
-    timesSaved: 40
+// Map ActionTemplate types to icons
+const getTypeIcon = (type: ActionTemplate['type']): React.ElementType => {
+  switch (type) {
+    case 'call': return Phone;
+    case 'meeting': return Calendar;
+    case 'email': return MessageSquare;
+    case 'demo': return Target;
+    case 'proposal': return TrendingUp;
+    case 'task': return CheckCircle2;
+    default: return Zap;
   }
-];
+};
+
+// Convert ActionTemplate to display format
+const convertTemplateToCard = (template: ActionTemplate) => {
+  return {
+    id: template.id,
+    title: template.name,
+    description: template.description || 'No description available',
+    category: template.type,
+    difficulty: template.usage_count > 50 ? 'beginner' : template.usage_count > 20 ? 'intermediate' : 'advanced',
+    successRate: template.success_rate || 75,
+    avgTime: `${template.avg_completion_time || 30} min`,
+    icon: getTypeIcon(template.type),
+    tags: template.tags || [],
+    prompt: template.name,
+    usageCount: template.usage_count || 0,
+    lastUsed: template.usage_count > 0 ? 'Recently' : 'Never',
+    timesSaved: template.avg_completion_time ? Math.floor(template.avg_completion_time * 0.3) : 15
+  };
+};
 
 export function EnhancedTemplatesGallery({ category = 'all', onTemplateSelect }: EnhancedTemplatesGalleryProps) {
   const [viewMode, setViewMode] = useState<'compact' | 'expanded'>('compact');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Get templates from Supabase
+  const { templates, loading, error } = useSupabaseActions();
+
+  // Convert Supabase templates to display format
+  const displayTemplates = templates.map(convertTemplateToCard);
+
   // Filter templates
-  const filteredTemplates = enhancedTemplates.filter(template => {
+  const filteredTemplates = displayTemplates.filter(template => {
     if (category !== 'all' && template.category !== category) return false;
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -354,11 +313,38 @@ export function EnhancedTemplatesGallery({ category = 'all', onTemplateSelect }:
         ))}
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="bg-white/70 backdrop-blur-md rounded-xl p-8 text-center">
+          <RefreshCw className="h-10 w-10 text-gray-300 mx-auto mb-3 animate-spin" />
+          <p className="text-sm text-gray-500">Loading templates...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !loading && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <AlertCircle className="h-10 w-10 text-red-300 mx-auto mb-3" />
+          <p className="text-sm text-red-600 font-medium mb-2">Failed to load templates</p>
+          <p className="text-xs text-red-500">{error}</p>
+        </div>
+      )}
+
       {/* No Results */}
-      {filteredTemplates.length === 0 && (
+      {!loading && !error && filteredTemplates.length === 0 && templates.length === 0 && (
         <div className="bg-white/70 backdrop-blur-md rounded-xl p-8 text-center">
           <AlertCircle className="h-10 w-10 text-gray-300 mx-auto mb-3" />
           <p className="text-sm text-gray-500">No templates found</p>
+          <p className="text-xs text-gray-400 mt-1">Create your first template to get started</p>
+        </div>
+      )}
+
+      {/* No Search Results */}
+      {!loading && !error && filteredTemplates.length === 0 && templates.length > 0 && (
+        <div className="bg-white/70 backdrop-blur-md rounded-xl p-8 text-center">
+          <Search className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm text-gray-500">No templates match your search</p>
+          <p className="text-xs text-gray-400 mt-1">Try different keywords or clear the search</p>
         </div>
       )}
     </div>

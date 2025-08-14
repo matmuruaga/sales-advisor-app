@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TeamMember } from '@/data/mockTeamMembers';
+import { TeamMember } from '@/hooks/useSupabaseTeamMembers';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 

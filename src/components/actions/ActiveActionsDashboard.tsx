@@ -1,7 +1,7 @@
 // src/components/actions/ActiveActionsDashboard.tsx
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Clock, 
@@ -27,20 +27,24 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { useSupabaseActions } from '@/hooks/useSupabaseActions';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { ErrorMessage } from '@/components/common/ErrorMessage';
 
 interface ActiveActionsDashboardProps {
-  bulkMode: boolean;
-  selectedActions: string[];
-  onActionSelect: (actionId: string) => void;
+  category?: string;
+  bulkMode?: boolean;
+  selectedActions?: string[];
+  onSelectionChange?: (actions: string[]) => void;
 }
 
 interface ActiveAction {
   id: string;
   title: string;
   description: string;
-  status: 'in-progress' | 'pending' | 'scheduled' | 'waiting' | 'completed';
+  status: 'in-progress' | 'in_progress' | 'pending' | 'scheduled' | 'waiting' | 'completed' | 'cancelled' | 'failed';
   priority: 'low' | 'medium' | 'high' | 'critical';
-  type: 'call' | 'meeting' | 'email' | 'proposal' | 'follow-up' | 'simulation';
+  type: 'call' | 'meeting' | 'email' | 'proposal' | 'follow-up' | 'follow_up' | 'task' | 'demo' | 'contract';
   assignee: string;
   contact?: string;
   company?: string;
@@ -59,128 +63,65 @@ interface ActiveAction {
   };
 }
 
-// Mock active actions data
-const mockActiveActions: ActiveAction[] = [
-  {
-    id: 'action-1',
-    title: 'Demo with TechCorp CTO',
-    description: 'Product demonstration focusing on AI capabilities and integration',
-    status: 'scheduled',
-    priority: 'high',
-    type: 'meeting',
-    assignee: 'You',
-    contact: 'María González',
-    company: 'TechCorp',
-    dueDate: '2025-01-15T15:00:00',
-    progress: 85,
-    successProbability: 87,
-    estimatedTime: '45 min',
-    createdAt: '2025-01-12T10:00:00',
-    lastUpdate: '2025-01-13T14:30:00',
-    tags: ['demo', 'c-level', 'technical'],
-    aiInsights: {
-      nextBestAction: 'Send technical documentation 24h before meeting',
-      riskLevel: 'low',
-      optimizationTips: ['Mention recent AI industry trends', 'Prepare for technical objections']
-    }
-  },
-  {
-    id: 'action-2',
-    title: 'Follow-up Call - InnovateAI',
-    description: 'Urgent follow-up regarding $150K budget discussion',
-    status: 'in-progress',
-    priority: 'critical',
-    type: 'call',
-    assignee: 'You',
-    contact: 'Carlos Ruiz',
-    company: 'InnovateAI',
-    dueDate: '2025-01-14T10:00:00',
-    progress: 60,
-    successProbability: 94,
-    estimatedTime: '30 min',
-    timeSpent: '15 min',
-    createdAt: '2025-01-11T09:00:00',
-    lastUpdate: '2025-01-13T16:45:00',
-    tags: ['follow-up', 'budget', 'urgent'],
-    aiInsights: {
-      nextBestAction: 'Confirm implementation timeline preferences',
-      riskLevel: 'low',
-      optimizationTips: ['Reference previous conversation about team size', 'Discuss competitor comparisons']
-    }
-  },
-  {
-    id: 'action-3',
-    title: 'Proposal Generation - DataSolutions',
-    description: 'Custom proposal with pricing for 50-person team',
-    status: 'pending',
-    priority: 'medium',
-    type: 'proposal',
-    assignee: 'You',
-    contact: 'Ana López',
-    company: 'DataSolutions',
-    dueDate: '2025-01-16T17:00:00',
-    progress: 25,
-    successProbability: 76,
-    estimatedTime: '2 hours',
-    createdAt: '2025-01-13T11:00:00',
-    lastUpdate: '2025-01-13T11:00:00',
-    tags: ['proposal', 'pricing', 'custom'],
-    aiInsights: {
-      nextBestAction: 'Research competitor pricing for similar team sizes',
-      riskLevel: 'medium',
-      optimizationTips: ['Include ROI calculator', 'Add implementation timeline']
-    }
-  },
-  {
-    id: 'action-4',
-    title: 'Practice Session - Objection Handling',
-    description: 'Simulation for handling pricing objections',
-    status: 'waiting',
-    priority: 'low',
-    type: 'simulation',
-    assignee: 'You',
-    dueDate: '2025-01-17T09:00:00',
-    progress: 0,
-    successProbability: 85,
-    estimatedTime: '40 min',
-    createdAt: '2025-01-12T15:00:00',
-    lastUpdate: '2025-01-12T15:00:00',
-    tags: ['practice', 'objections', 'skills'],
-    aiInsights: {
-      nextBestAction: 'Schedule practice session before next pricing call',
-      riskLevel: 'low',
-      optimizationTips: ['Focus on value-based messaging', 'Practice competitor comparisons']
-    }
-  },
-  {
-    id: 'action-5',
-    title: 'Team Briefing - GlobalTech Deal',
-    description: 'Prepare internal team for enterprise presentation',
-    status: 'completed',
-    priority: 'medium',
-    type: 'meeting',
-    assignee: 'Sarah Johnson',
-    company: 'GlobalTech',
-    dueDate: '2025-01-13T14:00:00',
-    progress: 100,
-    successProbability: 92,
-    estimatedTime: '30 min',
-    timeSpent: '25 min',
-    createdAt: '2025-01-10T08:00:00',
-    lastUpdate: '2025-01-13T14:30:00',
-    tags: ['briefing', 'enterprise', 'team']
-  }
-];
 
-export function ActiveActionsDashboard({ bulkMode, selectedActions, onActionSelect }: ActiveActionsDashboardProps) {
+// Function to map Supabase action to component format
+const mapSupabaseAction = (action: any): ActiveAction => {
+  return {
+    id: action.id,
+    title: action.title || 'Untitled Action',
+    description: action.description || (typeof action.content === 'string' ? action.content : action.content?.description) || '',
+    status: action.status || 'pending',
+    priority: action.priority || 'medium',
+    type: action.type || 'task',
+    assignee: action.user?.full_name || action.assigned_to || 'You',
+    contact: action.contact?.full_name || action.contact_name || '',
+    company: action.contact?.company?.name || action.company?.name || action.company_name || '',
+    dueDate: action.due_date || action.scheduled_at || new Date().toISOString(),
+    progress: action.progress || (action.status === 'completed' ? 100 : 0),
+    successProbability: action.success_probability || action.ai_confidence_score ? Math.round((action.ai_confidence_score || 0.75) * 100) : 75,
+    estimatedTime: action.estimated_duration_minutes ? `${action.estimated_duration_minutes} min` : '30 min',
+    timeSpent: action.actual_duration_minutes ? `${action.actual_duration_minutes} min` : undefined,
+    createdAt: action.created_at,
+    lastUpdate: action.updated_at,
+    tags: action.tags || [],
+    aiInsights: action.metadata?.aiInsights || action.ai_insights || {
+      nextBestAction: action.metadata?.nextBestAction || 'Review and follow up',
+      riskLevel: (action.metadata?.riskLevel || 'medium') as 'low' | 'medium' | 'high',
+      optimizationTips: action.metadata?.tips || []
+    }
+  };
+};
+
+export function ActiveActionsDashboard({ 
+  category = 'all',
+  bulkMode = false, 
+  selectedActions = [], 
+  onSelectionChange = () => {} 
+}: ActiveActionsDashboardProps) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('dueDate');
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
 
+  // Get actions from Supabase
+  const { 
+    actions: supabaseActions, 
+    loading, 
+    error,
+    updateAction,
+    deleteAction 
+  } = useSupabaseActions({
+    realTimeUpdates: true
+  });
+
+  // Map Supabase actions to component format
+  const activeActions = useMemo(() => {
+    return supabaseActions.map(mapSupabaseAction);
+  }, [supabaseActions]);
+
   // Filter and sort actions
-  const filteredActions = mockActiveActions
+  const filteredActions = activeActions
     .filter(action => {
       if (statusFilter !== 'all' && action.status !== statusFilter) return false;
       if (priorityFilter !== 'all' && action.priority !== priorityFilter) return false;
@@ -214,11 +155,14 @@ export function ActiveActionsDashboard({ bulkMode, selectedActions, onActionSele
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'in_progress':
       case 'in-progress': return 'bg-blue-100 text-blue-700 border-blue-200';
       case 'pending': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
       case 'scheduled': return 'bg-purple-100 text-purple-700 border-purple-200';
       case 'waiting': return 'bg-gray-100 text-gray-700 border-gray-200';
       case 'completed': return 'bg-green-100 text-green-700 border-green-200';
+      case 'cancelled': return 'bg-red-100 text-red-700 border-red-200';
+      case 'failed': return 'bg-red-100 text-red-700 border-red-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
@@ -239,8 +183,11 @@ export function ActiveActionsDashboard({ bulkMode, selectedActions, onActionSele
       case 'meeting': return Calendar;
       case 'email': return Target;
       case 'proposal': return FileDocument;
+      case 'follow_up':
       case 'follow-up': return TrendingUp;
-      case 'simulation': return Play;
+      case 'task': return Target;
+      case 'demo': return Play;
+      case 'contract': return FileDocument;
       default: return Target;
     }
   };
@@ -260,6 +207,43 @@ export function ActiveActionsDashboard({ bulkMode, selectedActions, onActionSele
     setExpandedAction(expandedAction === actionId ? null : actionId);
   };
 
+  // Action handlers
+  const handleStartAction = async (actionId: string) => {
+    await updateAction(actionId, { status: 'in-progress' });
+  };
+
+  const handlePauseAction = async (actionId: string) => {
+    await updateAction(actionId, { status: 'pending' });
+  };
+
+  const handleCompleteAction = async (actionId: string) => {
+    await updateAction(actionId, { status: 'completed', progress: 100 });
+  };
+
+  const handleDeleteAction = async (actionId: string) => {
+    if (confirm('Are you sure you want to delete this action?')) {
+      await deleteAction(actionId);
+    }
+  };
+
+  // Handle loading state
+  if (loading && activeActions.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <LoadingSpinner message="Loading actions..." />
+      </div>
+    );
+  }
+
+  // Handle error state
+  if (error && activeActions.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <ErrorMessage message={error} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -277,7 +261,7 @@ export function ActiveActionsDashboard({ bulkMode, selectedActions, onActionSele
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'In Progress', count: filteredActions.filter(a => a.status === 'in-progress').length, color: 'blue' },
+            { label: 'In Progress', count: filteredActions.filter(a => a.status === 'in-progress' || a.status === 'in_progress').length, color: 'blue' },
             { label: 'Scheduled', count: filteredActions.filter(a => a.status === 'scheduled').length, color: 'purple' },
             { label: 'Critical', count: filteredActions.filter(a => a.priority === 'critical').length, color: 'red' },
             { label: 'Due Today', count: filteredActions.filter(a => formatDueDate(a.dueDate).includes('h')).length, color: 'orange' }
@@ -310,7 +294,7 @@ export function ActiveActionsDashboard({ bulkMode, selectedActions, onActionSele
             className="px-3 py-2 rounded-lg border border-gray-200/50 bg-white/50 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-green-500/20"
           >
             <option value="all">All Status</option>
-            <option value="in-progress">In Progress</option>
+            <option value="in_progress">In Progress</option>
             <option value="pending">Pending</option>
             <option value="scheduled">Scheduled</option>
             <option value="waiting">Waiting</option>
@@ -367,7 +351,12 @@ export function ActiveActionsDashboard({ bulkMode, selectedActions, onActionSele
                   {/* Bulk Selection */}
                   {bulkMode && (
                     <button
-                      onClick={() => onActionSelect(action.id)}
+                      onClick={() => {
+                        const newSelection = isSelected 
+                          ? selectedActions.filter(id => id !== action.id)
+                          : [...selectedActions, action.id];
+                        onSelectionChange(newSelection);
+                      }}
                       className={`p-2 rounded-full transition-colors ${
                         isSelected ? 'bg-purple-100 text-purple-600' : 'hover:bg-gray-100'
                       }`}
@@ -531,15 +520,34 @@ export function ActiveActionsDashboard({ bulkMode, selectedActions, onActionSele
                       {/* Action Buttons */}
                       <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
                         {action.status === 'pending' && (
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                          <Button 
+                            size="sm" 
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => handleStartAction(action.id)}
+                          >
                             <Play className="h-3 w-3 mr-1" />
                             Start
                           </Button>
                         )}
-                        {action.status === 'in-progress' && (
-                          <Button size="sm" variant="outline">
+                        {(action.status === 'in-progress' || action.status === 'in_progress') && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handlePauseAction(action.id)}
+                          >
                             <Pause className="h-3 w-3 mr-1" />
                             Pause
+                          </Button>
+                        )}
+                        {(action.status === 'in-progress' || action.status === 'in_progress' || action.status === 'pending') && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-green-600 hover:text-green-700"
+                            onClick={() => handleCompleteAction(action.id)}
+                          >
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Complete
                           </Button>
                         )}
                         <Button size="sm" variant="outline">
@@ -553,6 +561,15 @@ export function ActiveActionsDashboard({ bulkMode, selectedActions, onActionSele
                         <Button size="sm" variant="outline">
                           <ExternalLink className="h-3 w-3 mr-1" />
                           View Details
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteAction(action.id)}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Delete
                         </Button>
                       </div>
                     </div>
@@ -572,7 +589,15 @@ export function ActiveActionsDashboard({ bulkMode, selectedActions, onActionSele
           <p className="text-gray-500 mb-4">
             Try adjusting your filters or create new actions to get started.
           </p>
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => {
+              setStatusFilter('all');
+              setPriorityFilter('all');
+              setSearchTerm('');
+              setSortBy('dueDate');
+            }}
+          >
             Clear Filters
           </Button>
         </div>

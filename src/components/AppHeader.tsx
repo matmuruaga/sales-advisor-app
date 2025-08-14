@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Home,
   BarChart3,
@@ -117,6 +118,14 @@ export function AppHeader({
   setActiveView: (view: 'meetings' | 'analytics' | 'actions' | 'company' | 'contacts' | 'team' | 'reports') => void;
 }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const handleLogout = async () => {
+    const { error } = await signOut();
+    if (!error) {
+      window.location.href = '/login';
+    }
+  };
 
   return (
     <header className="flex items-center justify-between mb-8">
@@ -208,10 +217,18 @@ export function AppHeader({
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">Karel Duchon</p>
-                <p className="text-xs leading-none text-muted-foreground">
-                  karel.duchon@zytlyn.com
+                <p className="text-sm font-medium leading-none">
+                  {user?.profile?.full_name || 'Usuario'}
                 </p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user?.email}
+                </p>
+                {user?.profile?.role && (
+                  <p className="text-xs leading-none text-blue-600 font-medium">
+                    {user.profile.role.charAt(0).toUpperCase() + user.profile.role.slice(1)}
+                    {user?.organization?.name && ` • ${user.organization.name}`}
+                  </p>
+                )}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -228,9 +245,9 @@ export function AppHeader({
               <span>Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+              <span>Cerrar Sesión</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

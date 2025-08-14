@@ -14,8 +14,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { mockTeamMembers } from '@/data/mockTeamMembers';
+import { useSupabaseTeamMembers } from '@/hooks/useSupabaseTeamMembers';
 import { TeamGraphView } from './team/TeamGraphView';
+import { LoadingSpinner } from './common/LoadingSpinner';
+import { ErrorMessage } from './common/ErrorMessage';
 
 interface TeamPageProps {
   onMemberSelect: (memberId: string) => void;
@@ -24,22 +26,59 @@ interface TeamPageProps {
 export const TeamPage = ({ onMemberSelect }: TeamPageProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'cards' | 'graph'>('cards');
+  
+  // Use Supabase hook instead of mock data
+  const { teamMembers, teamMetrics, loading, error } = useSupabaseTeamMembers();
 
-  // Calculate team aggregate metrics
-  const teamMetrics = {
-    averageQuota: mockTeamMembers.reduce((acc, m) => acc + m.performance.quotaAttainment, 0) / mockTeamMembers.length,
-    totalPipeline: mockTeamMembers.reduce((acc, m) => acc + m.performance.pipelineValue, 0),
-    averageWinRate: mockTeamMembers.reduce((acc, m) => acc + m.performance.winRate, 0) / mockTeamMembers.length,
-    averageVelocity: mockTeamMembers.reduce((acc, m) => acc + m.performance.dealVelocity, 0) / mockTeamMembers.length,
-    criticalCount: mockTeamMembers.filter(m => m.performance.status === 'needs-attention').length,
-    coachingNeeded: mockTeamMembers.filter(m => m.coachingPriority === 'high').length,
-  };
+  // Debug logs
+  console.log('TeamPage render:', { 
+    loading, 
+    error, 
+    teamMembersCount: teamMembers.length, 
+    teamMetrics 
+  });
 
-  const filteredMembers = mockTeamMembers.filter(member =>
+  const filteredMembers = teamMembers.filter(member =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.territory.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <LoadingSpinner message="Loading team members..." />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <ErrorMessage message={`Error: ${error}`} />
+      </div>
+    );
+  }
+
+  // Show empty state with debug info
+  if (teamMembers.length === 0) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">No Team Members Found</h2>
+          <p className="text-gray-600 mb-4">Unable to load team member data.</p>
+          <div className="bg-gray-100 p-4 rounded-lg max-w-md">
+            <h3 className="font-semibold mb-2">Debug Info:</h3>
+            <p className="text-sm">Loading: {loading ? 'Yes' : 'No'}</p>
+            <p className="text-sm">Error: {error || 'None'}</p>
+            <p className="text-sm">Team Members: {teamMembers.length}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -72,7 +111,7 @@ export const TeamPage = ({ onMemberSelect }: TeamPageProps) => {
       {/* Header */}
       <div className="flex-shrink-0 mb-4">
         <h1 className="text-2xl font-bold text-gray-800">My Team</h1>
-        <p className="text-sm text-gray-500">{mockTeamMembers.length} team members</p>
+        <p className="text-sm text-gray-500">{teamMembers.length} team members</p>
       </div>
 
       {/* Team Overview Metrics */}
@@ -383,7 +422,7 @@ export const TeamPage = ({ onMemberSelect }: TeamPageProps) => {
               className="h-full"
             >
               <TeamGraphView
-                members={mockTeamMembers}
+                members={teamMembers}
                 onMemberSelect={onMemberSelect}
                 searchTerm={searchTerm}
               />

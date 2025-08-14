@@ -1,7 +1,7 @@
 // src/components/actions/SmartActionComposer.tsx
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
@@ -19,18 +19,26 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Users
+  Users,
+  Mail,
+  PhoneCall,
+  Briefcase,
+  UserPlus,
+  AtSign,
+  Hash
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { enhancedMockContacts } from '@/data/enhancedMockContacts';
-import { availableActions } from '@/data/availableActions';
-import { quickActionTemplates, recognitionPatterns } from '@/data/quickActionTemplates';
+import { useSupabaseActions } from '@/hooks/useSupabaseActions';
+import { useSupabaseContacts } from '@/hooks/useSupabaseContacts';
+import { type Action, type ActionTemplate } from '@/lib/supabase';
+import MentionDropdown, { type MentionOption } from '@/components/common/MentionDropdown';
+import VariablesSuggestions, { type VariableOption } from '@/components/common/VariablesSuggestions';
+import { resolveVariables } from '@/lib/promptTemplates';
 
 interface SmartActionComposerProps {
-  activeCategory: string | null;
-  bulkMode: boolean;
-  onActionSelect: (actionId: string) => void;
+  category?: string;
+  onActionCreate?: (action: Action) => void;
 }
 
 interface Suggestion {
@@ -41,6 +49,8 @@ interface Suggestion {
   score?: number;
   category?: string;
   context?: string;
+  id?: string;
+  data?: any;
 }
 
 interface ActionPreview {
@@ -53,57 +63,237 @@ interface ActionPreview {
   tips: string[];
 }
 
-const mockCompanies = [
-  'TechCorp', 'InnovateAI', 'DataSolutions', 'StartupABC', 
-  'FinanceCorps', 'GlobalTech', 'ClientSuccess', 'TechStartup'
-];
+export function SmartActionComposer({ category, onActionCreate }: SmartActionComposerProps) {
+  const { 
+    createAction, 
+    generateActionFromPrompt, 
+    createActionFromTemplate, 
+    templates, 
+    loading: actionsLoading, 
+    error: actionsError 
+  } = useSupabaseActions()
+  
+  const { 
+    contacts, 
+    companies, 
+    loading: contactsLoading 
+  } = useSupabaseContacts()
 
-export function SmartActionComposer({ activeCategory, bulkMode, onActionSelect }: SmartActionComposerProps) {
-  const [inputValue, setInputValue] = useState('');
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [actionPreview, setActionPreview] = useState<ActionPreview | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [showQuickActions, setShowQuickActions] = useState(false);
+  const [inputValue, setInputValue] = useState('')
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]) 
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [actionPreview, setActionPreview] = useState<ActionPreview | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<ActionTemplate | null>(null)
+  const [showQuickActions, setShowQuickActions] = useState(false)
+  const [selectedContact, setSelectedContact] = useState<any>(null)
+  const [selectedCompany, setSelectedCompany] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Mentions system state
+  const [showMentions, setShowMentions] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState('')
+  const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 })
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
+  const [mentionOptions, setMentionOptions] = useState<MentionOption[]>([])
+  const [activeMentions, setActiveMentions] = useState<Array<{id: string, type: 'contact' | 'user', name: string, email?: string, company?: string}>>([])
+  
+  // Variables system state
+  const [showVariables, setShowVariables] = useState(false)
+  const [variableQuery, setVariableQuery] = useState('')
+  const [variablePosition, setVariablePosition] = useState({ top: 0, left: 0 })
+  const [selectedVariableIndex, setSelectedVariableIndex] = useState(0)
+  const [activeVariables, setActiveVariables] = useState<Array<{key: string, value: string, type: 'date' | 'link' | 'text'}>>([]);
   
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const mentionDropdownRef = useRef<HTMLDivElement>(null);
+  const variableDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Generate mention options from contacts and team members
+  const generateMentionOptions = useCallback((query: string): MentionOption[] => {
+    const lowerQuery = query.toLowerCase();
+    const contactOptions: MentionOption[] = (contacts || [])
+      .filter(contact => {
+        const fullName = contact?.full_name?.toLowerCase() || '';
+        const email = contact?.email?.toLowerCase() || '';
+        const company = contact?.company?.name?.toLowerCase() || '';
+        return fullName.includes(lowerQuery) || email.includes(lowerQuery) || company.includes(lowerQuery);
+      })
+      .slice(0, 8)
+      .map(contact => ({
+        id: contact.id,
+        type: 'contact' as const,
+        name: contact.full_name || 'Unknown',
+        email: contact.email || undefined,
+        company: contact.company?.name || undefined,
+        role: contact.role_title || undefined
+      }));
+    
+    // TODO: Add team members here when available
+    const teamOptions: MentionOption[] = [];
+    
+    return [...contactOptions, ...teamOptions];
+  }, [contacts]);
+
+  // Detect mentions (@) and variables ([]) in input
+  const detectMentionsAndVariables = useCallback((value: string, cursorPosition: number) => {
+    // Detect @ mentions
+    const beforeCursor = value.substring(0, cursorPosition);
+    const afterCursor = value.substring(cursorPosition);
+    
+    // Find @ mentions
+    const lastAtIndex = beforeCursor.lastIndexOf('@');
+    if (lastAtIndex !== -1) {
+      const textAfterAt = beforeCursor.substring(lastAtIndex + 1);
+      const spaceIndex = textAfterAt.indexOf(' ');
+      const newlineIndex = textAfterAt.indexOf('\n');
+      
+      const endIndex = Math.min(
+        spaceIndex === -1 ? Infinity : spaceIndex,
+        newlineIndex === -1 ? Infinity : newlineIndex,
+        textAfterAt.length
+      );
+      
+      if (endIndex === textAfterAt.length && !afterCursor.startsWith(' ')) {
+        const query = textAfterAt;
+        setMentionQuery(query);
+        setMentionOptions(generateMentionOptions(query));
+        setShowMentions(true);
+        setSelectedMentionIndex(0);
+        
+        // Calculate position for dropdown
+        if (inputRef.current) {
+          const textArea = inputRef.current;
+          const rect = textArea.getBoundingClientRect();
+          const style = getComputedStyle(textArea);
+          const fontSize = parseInt(style.fontSize);
+          const lineHeight = parseInt(style.lineHeight) || fontSize * 1.2;
+          
+          // Estimate cursor position (simplified)
+          const lines = beforeCursor.split('\n');
+          const currentLine = lines.length - 1;
+          const charInLine = lines[lines.length - 1].length;
+          
+          setMentionPosition({
+            top: rect.top + (currentLine + 1) * lineHeight + 8,
+            left: rect.left + Math.min(charInLine * 8, rect.width - 320) // Estimate char width
+          });
+        }
+        return;
+      }
+    }
+    
+    // Find [ variables
+    const lastBracketIndex = beforeCursor.lastIndexOf('[');
+    if (lastBracketIndex !== -1) {
+      const textAfterBracket = beforeCursor.substring(lastBracketIndex + 1);
+      const closeBracketIndex = textAfterBracket.indexOf(']');
+      
+      if (closeBracketIndex === -1) {
+        const query = textAfterBracket;
+        setVariableQuery(query);
+        setShowVariables(true);
+        setSelectedVariableIndex(0);
+        
+        // Calculate position for dropdown
+        if (inputRef.current) {
+          const textArea = inputRef.current;
+          const rect = textArea.getBoundingClientRect();
+          const style = getComputedStyle(textArea);
+          const fontSize = parseInt(style.fontSize);
+          const lineHeight = parseInt(style.lineHeight) || fontSize * 1.2;
+          
+          const lines = beforeCursor.split('\n');
+          const currentLine = lines.length - 1;
+          const charInLine = lines[lines.length - 1].length;
+          
+          setVariablePosition({
+            top: rect.top + (currentLine + 1) * lineHeight + 8,
+            left: rect.left + Math.min(charInLine * 8, rect.width - 380)
+          });
+        }
+        return;
+      }
+    }
+    
+    // Hide dropdowns if no matches
+    setShowMentions(false);
+    setShowVariables(false);
+  }, [generateMentionOptions]);
+
+  // Extract mentions and variables from text
+  const extractMentionsAndVariables = useCallback((text: string) => {
+    // Extract mentions
+    const mentions: Array<{id: string, type: 'contact' | 'user', name: string, email?: string, company?: string}> = [];
+    const mentionMatches = text.match(/@\[([^\]]+)\]\(([^)]+)\)/g);
+    if (mentionMatches) {
+      mentionMatches.forEach(match => {
+        const result = match.match(/@\[([^\]]+)\]\(([^)]+)\)/);
+        if (result) {
+          const [, name, id] = result;
+          const contact = contacts?.find(c => c.id === id);
+          if (contact) {
+            mentions.push({
+              id: contact.id,
+              type: 'contact',
+              name: contact.full_name || name,
+              email: contact.email || undefined,
+              company: contact.company?.name || undefined
+            });
+          }
+        }
+      });
+    }
+    
+    // Extract and resolve variables
+    const variables = resolveVariables(text);
+    
+    setActiveMentions(mentions);
+    setActiveVariables(variables);
+    
+    return { mentions, variables };
+  }, [contacts]);
 
   // Generate intelligent suggestions based on input
-  const generateSuggestions = (value: string): Suggestion[] => {
-    const allSuggestions: Suggestion[] = [];
-    const lowerValue = value.toLowerCase();
+  const generateSuggestions = useCallback((value: string): Suggestion[] => {
+    try {
+      const allSuggestions: Suggestion[] = []
+      const lowerValue = value.toLowerCase()
 
-    // Contact suggestions
-    const contactMatches = enhancedMockContacts
+    // Contact suggestions (with null-safe validation)
+    const contactMatches = (contacts || [])
       .filter(contact => 
-        contact.name.toLowerCase().includes(lowerValue) ||
-        contact.company.toLowerCase().includes(lowerValue) ||
-        contact.role.toLowerCase().includes(lowerValue)
+        contact?.full_name?.toLowerCase().includes(lowerValue) ||
+        (contact?.company?.name && contact.company.name.toLowerCase().includes(lowerValue)) ||
+        (contact?.role_title && contact.role_title.toLowerCase().includes(lowerValue))
       )
       .slice(0, 3)
       .map(contact => ({
         type: 'contact' as const,
-        value: contact.name,
-        displayValue: `${contact.name} - ${contact.role} at ${contact.company}`,
+        value: contact.full_name,
+        displayValue: `${contact.full_name}${contact.role_title ? ` - ${contact.role_title}` : ''}${contact.company?.name ? ` at ${contact.company.name}` : ''}`,
         icon: User,
         score: contact.score,
-        context: `Status: ${contact.status}, Last contact: ${contact.lastContact}`
-      }));
+        context: `Status: ${contact.status}, Score: ${contact.score}/100`,
+        id: contact.id,
+        data: contact
+      }))
 
-    // Company suggestions
-    const companyMatches = mockCompanies
-      .filter(company => company.toLowerCase().includes(lowerValue))
+    // Company suggestions (with null-safe validation)
+    const companyMatches = (companies || [])
+      .filter(company => company?.name?.toLowerCase().includes(lowerValue))
       .slice(0, 3)
       .map(company => ({
         type: 'company' as const,
-        value: company,
-        displayValue: company,
+        value: company.name,
+        displayValue: company.name,
         icon: Building2,
-        context: 'Enterprise prospect'
-      }));
+        context: `Industry: ${company.industry_id || 'Unknown'}, Size: ${company.employee_count || 'Unknown'}`,
+        id: company.id,
+        data: company
+      }))
 
     // Action type suggestions based on keywords
     if (lowerValue.includes('call') || lowerValue.includes('llamar')) {
@@ -137,28 +327,35 @@ export function SmartActionComposer({ activeCategory, bulkMode, onActionSelect }
     }
 
     // Template suggestions
-    const templateCategory = lowerValue.includes('call') ? 'call' : 
-                           lowerValue.includes('meeting') || lowerValue.includes('schedule') ? 'schedule' :
-                           lowerValue.includes('simulate') ? 'simulate' : null;
+    let templateType: Action['type'] | null = null
+    if (lowerValue.includes('call') || lowerValue.includes('llamar')) templateType = 'call'
+    else if (lowerValue.includes('email') || lowerValue.includes('correo')) templateType = 'email'
+    else if (lowerValue.includes('meeting') || lowerValue.includes('reunion')) templateType = 'meeting'
+    else if (lowerValue.includes('proposal') || lowerValue.includes('propuesta')) templateType = 'proposal'
+    else if (lowerValue.includes('demo')) templateType = 'demo'
+    else if (lowerValue.includes('task') || lowerValue.includes('tarea')) templateType = 'task'
     
-    if (templateCategory && quickActionTemplates[templateCategory]) {
-      const templateMatches = quickActionTemplates[templateCategory]
-        .filter(template => 
-          template.title.toLowerCase().includes(lowerValue) ||
-          template.prompt.toLowerCase().includes(lowerValue)
-        )
-        .slice(0, 2)
-        .map(template => ({
-          type: 'template' as const,
-          value: template.prompt,
-          displayValue: template.title,
-          icon: Target,
-          category: template.category,
-          context: 'Pre-configured template'
-        }));
+    const templateMatches = (templates || [])
+      .filter(template => 
+        template && 
+        (!templateType || template.type === templateType) &&
+        (template.name?.toLowerCase().includes(lowerValue) ||
+         template.description?.toLowerCase().includes(lowerValue) ||
+         template.tags?.some(tag => tag?.toLowerCase().includes(lowerValue)))
+      )
+      .slice(0, 3)
+      .map(template => ({
+        type: 'template' as const,
+        value: template.name,
+        displayValue: template.name,
+        icon: Target,
+        category: template.category || template.type,
+        context: `${template.type} template • Used ${template.usage_count} times`,
+        id: template.id,
+        data: template
+      }))
       
-      allSuggestions.push(...templateMatches);
-    }
+    allSuggestions.push(...templateMatches)
 
     // Time suggestions
     if (lowerValue.includes('tomorrow') || lowerValue.includes('mañana')) {
@@ -192,56 +389,89 @@ export function SmartActionComposer({ activeCategory, bulkMode, onActionSelect }
       });
     }
 
-    return [...contactMatches, ...companyMatches, ...allSuggestions].slice(0, 6);
-  };
+      return [...contactMatches, ...companyMatches, ...allSuggestions].slice(0, 6)
+    } catch (error) {
+      console.error('Error generating suggestions:', error)
+      return []
+    }
+  }, [contacts, companies, templates])
 
   // Generate action preview with AI analysis
-  const generateActionPreview = (prompt: string): ActionPreview => {
-    const hasContact = recognitionPatterns.names.some(name => 
-      prompt.toLowerCase().includes(name.toLowerCase())
-    );
-    const hasCompany = recognitionPatterns.companies.some(company => 
-      prompt.toLowerCase().includes(company.toLowerCase())
-    );
-    const hasTimeline = recognitionPatterns.timeIndicators.some(time => 
-      prompt.toLowerCase().includes(time)
-    );
-
-    let successProbability = 65; // Base probability
-    const riskFactors: string[] = [];
-    const tips: string[] = [];
-
+  const generateActionPreview = useCallback((prompt: string): ActionPreview => {
+    try {
+      const lowerPrompt = prompt.toLowerCase()
+    
+    const hasContact = selectedContact || (contacts || []).some(contact => 
+      contact?.full_name && lowerPrompt.includes(contact.full_name.toLowerCase())
+    )
+    const hasCompany = selectedCompany || (companies || []).some(company => 
+      company?.name && lowerPrompt.includes(company.name.toLowerCase())
+    )
+    const hasTimeline = /\b(today|tomorrow|next week|monday|tuesday|wednesday|thursday|friday|this week|mañana|hoy|próxima semana)\b/.test(lowerPrompt)
+    
+    let successProbability = 65 // Base probability
+    const riskFactors: string[] = []
+    const tips: string[] = []
+    
     // Adjust probability based on context
-    if (hasContact && hasCompany) successProbability += 15;
-    if (hasTimeline) successProbability += 10;
-    if (prompt.includes('$') || prompt.includes('budget')) successProbability += 10;
+    if (hasContact && hasCompany) successProbability += 15
+    if (hasTimeline) successProbability += 10
+    if (prompt.includes('$') || lowerPrompt.includes('budget') || lowerPrompt.includes('price')) successProbability += 10
+    if (selectedTemplate) successProbability += 5
     
     // Add risk factors
-    if (!hasContact) riskFactors.push('No specific contact mentioned');
-    if (!hasTimeline) riskFactors.push('No timeline specified');
-    if (prompt.length < 20) riskFactors.push('Limited context provided');
-
-    // Add tips
-    if (hasContact) tips.push('Reference recent interaction history');
-    if (hasCompany) tips.push('Mention relevant industry trends');
-    tips.push('Schedule during optimal engagement hours');
-
-    return {
-      title: 'AI-Generated Sales Action',
-      description: prompt.length > 50 
-        ? 'Comprehensive action with detailed context' 
-        : 'Quick action - consider adding more details',
-      successProbability: Math.min(95, successProbability),
-      estimatedTime: '15-30 minutes',
-      suggestedTiming: 'Today 2-4 PM (peak engagement)',
-      riskFactors,
-      tips
-    };
-  };
+    if (!hasContact) riskFactors.push('No specific contact mentioned')
+    if (!hasTimeline) riskFactors.push('No timeline specified')
+    if (prompt.length < 20) riskFactors.push('Limited context provided')
+    
+    // Add tips based on selected data
+    if (selectedContact) {
+      tips.push(`Reference ${selectedContact.full_name}'s recent activity`)
+      if (selectedContact.score > 70) tips.push('High-score contact - prioritize this action')
+    }
+    if (selectedCompany) {
+      tips.push(`Mention industry trends for ${selectedCompany.industry_id || 'their sector'}`)
+    }
+    if (selectedTemplate) {
+      tips.push(`Using proven template with ${selectedTemplate.usage_count} successful uses`)
+    }
+    tips.push('Schedule during optimal engagement hours')
+    
+      return {
+        title: 'AI-Generated Sales Action',
+        description: prompt.length > 50 
+          ? 'Comprehensive action with detailed context' 
+          : 'Quick action - consider adding more details',
+        successProbability: Math.min(95, successProbability),
+        estimatedTime: selectedTemplate?.avg_completion_time ? `${selectedTemplate.avg_completion_time} minutes` : '15-30 minutes',
+        suggestedTiming: 'Today 2-4 PM (peak engagement)',
+        riskFactors,
+        tips
+      }
+    } catch (error) {
+      console.error('Error generating action preview:', error)
+      return {
+        title: 'AI-Generated Sales Action',
+        description: 'Error generating preview',
+        successProbability: 50,
+        estimatedTime: '15-30 minutes',
+        suggestedTiming: 'Today',
+        riskFactors: ['Preview generation failed'],
+        tips: []
+      }
+    }
+  }, [contacts, companies, selectedContact, selectedCompany, selectedTemplate])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
+    const cursorPosition = e.target.selectionStart;
     setInputValue(value);
+    
+    // Detect mentions and variables at cursor position
+    detectMentionsAndVariables(value, cursorPosition);
+    
+    // Extract mentions and variables from the full text
+    extractMentionsAndVariables(value);
     
     if (value.trim().length > 2) {
       const newSuggestions = generateSuggestions(value);
@@ -261,64 +491,224 @@ export function SmartActionComposer({ activeCategory, bulkMode, onActionSelect }
     }
   };
 
-  const handleSuggestionClick = (suggestion: Suggestion) => {
-    if (suggestion.type === 'template') {
-      setInputValue(suggestion.value);
-      setSelectedTemplate(suggestion.displayValue);
-    } else if (suggestion.type === 'contact' || suggestion.type === 'company') {
-      // Replace or append the suggestion to current input
-      setInputValue(prev => {
-        if (prev.trim() === '') return suggestion.displayValue;
-        return `${prev} ${suggestion.displayValue}`;
-      });
-    } else {
-      setInputValue(prev => `${prev} ${suggestion.displayValue}`);
+  // Handle mention selection
+  const handleMentionSelect = useCallback((mention: MentionOption) => {
+    if (!inputRef.current) return;
+    
+    const textarea = inputRef.current;
+    const cursorPos = textarea.selectionStart;
+    const value = textarea.value;
+    
+    // Find the @ position before cursor
+    const beforeCursor = value.substring(0, cursorPos);
+    const lastAtIndex = beforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      const beforeAt = value.substring(0, lastAtIndex);
+      const afterCursor = value.substring(cursorPos);
+      const mentionText = `@[${mention.name}](${mention.id})`;
+      const newValue = beforeAt + mentionText + ' ' + afterCursor;
+      
+      setInputValue(newValue);
+      setShowMentions(false);
+      
+      // Set cursor position after the mention
+      setTimeout(() => {
+        const newCursorPos = beforeAt.length + mentionText.length + 1;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        textarea.focus();
+      }, 0);
     }
-    setShowSuggestions(false);
-    inputRef.current?.focus();
-  };
+  }, []);
+  
+  // Handle variable selection
+  const handleVariableSelect = useCallback((variable: VariableOption) => {
+    if (!inputRef.current) return;
+    
+    const textarea = inputRef.current;
+    const cursorPos = textarea.selectionStart;
+    const value = textarea.value;
+    
+    // Find the [ position before cursor
+    const beforeCursor = value.substring(0, cursorPos);
+    const lastBracketIndex = beforeCursor.lastIndexOf('[');
+    
+    if (lastBracketIndex !== -1) {
+      const beforeBracket = value.substring(0, lastBracketIndex);
+      const afterCursor = value.substring(cursorPos);
+      const variableText = `[${variable.key}]`;
+      const newValue = beforeBracket + variableText + ' ' + afterCursor;
+      
+      setInputValue(newValue);
+      setShowVariables(false);
+      
+      // Set cursor position after the variable
+      setTimeout(() => {
+        const newCursorPos = beforeBracket.length + variableText.length + 1;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+        textarea.focus();
+      }, 0);
+    }
+  }, []);
+
+  const handleSuggestionClick = useCallback((suggestion: Suggestion) => {
+    if (suggestion.type === 'template' && suggestion.data) {
+      setSelectedTemplate(suggestion.data)
+      setInputValue(suggestion.data.description || suggestion.displayValue)
+    } else if (suggestion.type === 'contact' && suggestion.data) {
+      setSelectedContact(suggestion.data)
+      setInputValue(prev => {
+        const contactMention = `${suggestion.data.full_name}${suggestion.data.company?.name ? ` from ${suggestion.data.company.name}` : ''}`
+        if (prev.trim() === '') return `Create action for ${contactMention}: `
+        return prev.includes(suggestion.data.full_name) ? prev : `${prev} ${contactMention}`
+      })
+    } else if (suggestion.type === 'company' && suggestion.data) {
+      setSelectedCompany(suggestion.data)
+      setInputValue(prev => {
+        const companyMention = suggestion.data.name
+        if (prev.trim() === '') return `Create action for ${companyMention}: `
+        return prev.includes(companyMention) ? prev : `${prev} ${companyMention}`
+      })
+    } else {
+      setInputValue(prev => `${prev} ${suggestion.displayValue}`)
+    }
+    setShowSuggestions(false)
+    inputRef.current?.focus()
+  }, [])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!showSuggestions) return;
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setSelectedSuggestionIndex(prev => 
-        prev < suggestions.length - 1 ? prev + 1 : prev
-      );
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
-    } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
-      e.preventDefault();
-      handleSuggestionClick(suggestions[selectedSuggestionIndex]);
-    } else if (e.key === 'Escape') {
-      setShowSuggestions(false);
-      setSelectedSuggestionIndex(-1);
+    // Handle mentions dropdown navigation
+    if (showMentions) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev => 
+          prev < mentionOptions.length - 1 ? prev + 1 : prev
+        );
+        return;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedMentionIndex(prev => prev > 0 ? prev - 1 : 0);
+        return;
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (mentionOptions[selectedMentionIndex]) {
+          handleMentionSelect(mentionOptions[selectedMentionIndex]);
+        }
+        return;
+      } else if (e.key === 'Escape') {
+        setShowMentions(false);
+        return;
+      }
+    }
+    
+    // Handle variables dropdown navigation
+    if (showVariables) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedVariableIndex(prev => prev + 1);
+        return;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedVariableIndex(prev => prev > 0 ? prev - 1 : 0);
+        return;
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        // Get the default variable options since we don't pass custom ones
+        const defaultVariables = [
+          { key: 'today', label: 'Today', description: 'Current date', type: 'date' as const, category: 'time' as const, icon: <Calendar className="w-4 h-4" /> },
+          { key: 'tomorrow', label: 'Tomorrow', description: 'Next day', type: 'date' as const, category: 'time' as const, icon: <Calendar className="w-4 h-4" /> },
+          { key: 'next week', label: 'Next Week', description: 'One week from today', type: 'date' as const, category: 'time' as const, icon: <Calendar className="w-4 h-4" /> },
+          // ... other default variables would be here
+        ];
+        if (defaultVariables[selectedVariableIndex]) {
+          handleVariableSelect(defaultVariables[selectedVariableIndex]);
+        }
+        return;
+      } else if (e.key === 'Escape') {
+        setShowVariables(false);
+        return;
+      }
+    }
+    
+    // Handle regular suggestions navigation
+    if (showSuggestions) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => 
+          prev < suggestions.length - 1 ? prev + 1 : prev
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
+      } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
+        e.preventDefault();
+        handleSuggestionClick(suggestions[selectedSuggestionIndex]);
+      } else if (e.key === 'Escape') {
+        setShowSuggestions(false);
+        setSelectedSuggestionIndex(-1);
+      }
     }
   };
 
-  const handleSubmit = async () => {
-    if (!inputValue.trim()) return;
+  const handleSubmit = useCallback(async () => {
+    if (!inputValue.trim()) return
     
-    setIsGenerating(true);
-    // Simulate AI processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setIsGenerating(false);
-    
-    // Reset form
-    setInputValue('');
-    setActionPreview(null);
-    setSelectedTemplate(null);
-  };
+    try {
+      setIsGenerating(true)
+      setError(null)
+      
+      // Use the new Claude API endpoint
+      const response = await fetch('/api/generate-action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userPrompt: inputValue,
+          userId: 'temp-user-id', // TODO: Get from auth context
+          mentions: activeMentions,
+          contacts: contacts || [],
+          templates: (templates || []).map(t => t.name)
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate action');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.action && onActionCreate) {
+        onActionCreate(result.action)
+      }
+      
+      // Reset form
+      setInputValue('')
+      setActionPreview(null)
+      setSelectedTemplate(null)
+      setSelectedContact(null)
+      setSelectedCompany(null)
+      setActiveMentions([])
+      setActiveVariables([])
+      
+    } catch (error) {
+      console.error('Error creating action:', error)
+      setError(error instanceof Error ? error.message : 'Failed to create action. Please try again.')
+    } finally {
+      setIsGenerating(false)
+    }
+  }, [inputValue, activeMentions, contacts, templates, onActionCreate])
 
   // Quick action buttons for common tasks
   const quickActions = [
-    { label: 'Schedule Demo', icon: Calendar, prompt: 'Schedule a product demo with' },
-    { label: 'Follow-up Call', icon: Phone, prompt: 'Schedule follow-up call with' },
-    { label: 'Send Proposal', icon: FileText, prompt: 'Generate and send proposal to' },
-    { label: 'Team Briefing', icon: Users, prompt: 'Create team briefing for meeting with' }
-  ];
+    { label: 'Schedule Demo', icon: Calendar, type: 'demo' as Action['type'], prompt: 'Schedule a product demo with' },
+    { label: 'Follow-up Call', icon: PhoneCall, type: 'call' as Action['type'], prompt: 'Schedule follow-up call with' },
+    { label: 'Send Email', icon: Mail, type: 'email' as Action['type'], prompt: 'Send follow-up email to' },
+    { label: 'Create Proposal', icon: FileText, type: 'proposal' as Action['type'], prompt: 'Generate and send proposal to' },
+    { label: 'Schedule Meeting', icon: Users, type: 'meeting' as Action['type'], prompt: 'Schedule meeting with' },
+    { label: 'Create Task', icon: Briefcase, type: 'task' as Action['type'], prompt: 'Create task for' }
+  ]
 
   return (
     <div className="space-y-6">
@@ -356,13 +746,18 @@ export function SmartActionComposer({ activeCategory, bulkMode, onActionSelect }
               transition={{ duration: 0.3 }}
               className="mb-6"
             >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {quickActions.map((action, index) => (
                   <button
                     key={index}
                     onClick={() => {
-                      setInputValue(action.prompt + ' ');
-                      setShowQuickActions(false);
+                      setInputValue(action.prompt + ' ')
+                      setShowQuickActions(false)
+                      // Find matching template for this action type
+                      const matchingTemplate = (templates || []).find(t => t?.type === action.type)
+                      if (matchingTemplate) {
+                        setSelectedTemplate(matchingTemplate)
+                      }
                     }}
                     className="flex items-center gap-2 p-3 rounded-xl bg-gray-50/50 hover:bg-gray-100/50 transition-colors text-sm font-medium text-gray-700"
                   >
@@ -382,29 +777,82 @@ export function SmartActionComposer({ activeCategory, bulkMode, onActionSelect }
             value={inputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Example: Schedule demo with María González, CTO at TechCorp, tomorrow 3pm to show how SixthSense improves sales efficiency..."
+            placeholder="Try typing: Schedule demo with @María González [tomorrow] to show [product demo]..."
             className="w-full p-4 rounded-xl border border-gray-200/50 bg-white/50 backdrop-blur-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-300 min-h-[100px] placeholder:text-gray-400"
             rows={4}
           />
           
-          {/* Character Count */}
-          <div className="absolute bottom-4 right-4 text-xs text-gray-400">
-            {inputValue.length}/500
+          {/* Character Count and Help */}
+          <div className="absolute bottom-4 right-4 flex items-center gap-3 text-xs text-gray-400">
+            <div className="hidden sm:flex items-center gap-2">
+              <span>@ for mentions</span>
+              <span>•</span>
+              <span>[ ] for variables</span>
+            </div>
+            <span>{inputValue.length}/500</span>
           </div>
         </div>
 
-        {/* Template Badge */}
-        {selectedTemplate && (
-          <div className="mt-2">
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-              Using template: {selectedTemplate}
-            </Badge>
+        {/* Selected Context Badges */}
+        {(selectedTemplate || selectedContact || selectedCompany || activeMentions.length > 0 || activeVariables.length > 0) && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {selectedTemplate && (
+              <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                Template: {selectedTemplate.name}
+              </Badge>
+            )}
+            {selectedContact && (
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                Contact: {selectedContact.full_name}
+              </Badge>
+            )}
+            {selectedCompany && (
+              <Badge variant="secondary" className="bg-green-100 text-green-700">
+                Company: {selectedCompany.name}
+              </Badge>
+            )}
+            {activeMentions.map((mention, index) => (
+              <Badge key={`mention-${index}`} variant="secondary" className="bg-blue-100 text-blue-700">
+                <AtSign className="w-3 h-3 mr-1" />
+                {mention.name}
+              </Badge>
+            ))}
+            {activeVariables.map((variable, index) => (
+              <Badge key={`variable-${index}`} variant="secondary" className="bg-orange-100 text-orange-700">
+                <Hash className="w-3 h-3 mr-1" />
+                {variable.key} = {variable.value}
+              </Badge>
+            ))}
           </div>
         )}
 
+        {/* Mentions Dropdown */}
+        <MentionDropdown
+          ref={mentionDropdownRef}
+          options={mentionOptions}
+          isVisible={showMentions}
+          selectedIndex={selectedMentionIndex}
+          onSelect={handleMentionSelect}
+          onClose={() => setShowMentions(false)}
+          position={mentionPosition}
+          query={mentionQuery}
+        />
+        
+        {/* Variables Dropdown */}
+        <VariablesSuggestions
+          ref={variableDropdownRef}
+          options={[]} // Will use default options from the component
+          isVisible={showVariables}
+          selectedIndex={selectedVariableIndex}
+          onSelect={handleVariableSelect}
+          onClose={() => setShowVariables(false)}
+          position={variablePosition}
+          query={variableQuery}
+        />
+
         {/* Autocomplete Suggestions */}
         <AnimatePresence>
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && suggestions.length > 0 && !showMentions && !showVariables && (
             <motion.div
               ref={suggestionsRef}
               initial={{ opacity: 0, y: -10 }}
@@ -528,30 +976,45 @@ export function SmartActionComposer({ activeCategory, bulkMode, onActionSelect }
         <div className="flex items-center gap-3 mt-4">
           <Button
             onClick={handleSubmit}
-            disabled={!inputValue.trim() || isGenerating}
+            disabled={!inputValue.trim() || isGenerating || actionsLoading}
             className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
           >
             {isGenerating ? (
               <div className="flex items-center gap-2">
                 <div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
-                Generating Action...
+                {selectedTemplate ? 'Creating from Template...' : 'Generating Action...'}
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Send className="h-4 w-4" />
-                Create Action
+                {selectedTemplate ? 'Create from Template' : 'Generate Action'}
                 <ArrowRight className="h-4 w-4" />
               </div>
             )}
           </Button>
-          
-          {bulkMode && (
-            <Button variant="outline" onClick={() => onActionSelect('new-action')}>
-              Add to Bulk
-            </Button>
-          )}
         </div>
+
+        {/* Error Message */}
+        {(actionsError || error) && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertCircle className="h-4 w-4" />
+              <span className="text-sm font-medium">Error creating action</span>
+            </div>
+            <p className="text-red-600 text-sm mt-1">{actionsError || error}</p>
+          </div>
+        )}
+
+        {/* Loading States */}
+        {(actionsLoading || contactsLoading) && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-700">
+              <div className="animate-spin h-4 w-4 border-2 border-blue-300 border-t-blue-700 rounded-full" />
+              <span className="text-sm">Loading data...</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
-  );
+  )
 }
