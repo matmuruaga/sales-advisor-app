@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Button } from "@/components/ui/button";
 import { Calendar, QuickActionType } from "@/components/Calendar"; // Importar el nuevo tipo
 import { MeetingTimeline } from "@/components/MeetingTimeline";
 import { AppHeader } from "@/components/AppHeader";
-import { AnalyticsPageNew as AnalyticsPage } from "@/components/AnalyticsPageNew";
+import { AnalyticsPageNew as AnalyticsPage } from "@/components/analytics/AnalyticsPage";
 import { ActionsPage } from "@/components/ActionsPage";
 import { AgentCommandPalette } from "@/components/AgentCommandPalette";
 import { CompanyPage } from "@/components/CompanyPage";
@@ -20,61 +20,10 @@ import { TeamMemberDetailPanel } from "@/components/team/TeamMemberDetailPanel";
 import { ReportsPage } from "@/components/ReportsPage";
 // 2. Importar el nuevo modal unificado
 import { QuickActionPromptModal } from "@/components/QuickActionPromptModal";
-
-interface Meeting {
-  id: string;
-  title: string;
-  description: string;
-  time: string;
-  dateTime: string;
-  duration: string;
-  platform: "google-meet" | "teams" | "zoom";
-  type: "opportunity" | "follow-up" | "weekly";
-  participants: string[];
-}
-
-const mockMeetings: Record<string, Meeting[]> = {
-  "2025-07-17": [
-    {
-      id: "meeting-1",
-      title: "Product Demo – TechCorp",
-      description: "Solution presentation for the development team",
-      time: "10:00",
-      dateTime: "2025-07-17T10:00:00",
-      duration: "45",
-      platform: "google-meet",
-      type: "opportunity",
-      participants: ["participant-1", "participant-2"],
-    },
-    {
-      id: "meeting-2",
-      title: "ClientX Follow-Up",
-      description: "Proposal review and next steps",
-      time: "15:00",
-      dateTime: "2025-07-17T15:00:00",
-      duration: "30",
-      platform: "teams",
-      type: "follow-up",
-      participants: ["participant-3"],
-    },
-  ],
-  "2025-07-18": [
-    {
-      id: "meeting-3",
-      title: "Weekly Sales Review",
-      description: "Weekly review of pipeline and metrics",
-      time: "09:00",
-      dateTime: "2025-07-18T09:00:00",
-      duration: "60",
-      platform: "zoom",
-      type: "weekly",
-      participants: ["participant-4", "participant-5", "participant-6"],
-    },
-  ],
-};
+import { useGoogleCalendar } from "@/hooks/useGoogleCalendar";
 
 export default function HomePage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date("2025-07-17"));
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedMeeting, setSelectedMeeting] = useState<string | null>(null);
   const [view, setView] = useState<'meetings' | 'analytics' | 'actions' | 'company' | 'contacts' | 'team' | 'reports'>('meetings');
   const [activeContactId, setActiveContactId] = useState<string | null>(null);
@@ -85,6 +34,9 @@ export default function HomePage() {
   const [isQuickPromptOpen, setIsQuickPromptOpen] = useState(false);
   const [activeQuickAction, setActiveQuickAction] = useState<QuickActionType | null>(null);
   const [isAgentPaletteOpen, setIsAgentPaletteOpen] = useState(false);
+
+  // Usar el hook de Google Calendar
+  const { meetings, isLoading, error, needsAuth, connectGoogle } = useGoogleCalendar(selectedDate);
 
    // --- LÓGICA DE TOGGLE AQUÍ ---
   const handleContactSelect = (contactId: string) => {
@@ -135,6 +87,29 @@ export default function HomePage() {
                   onDateSelect={handleDate}
                   onQuickAction={handleQuickAction}
                 />
+                {/* Mostrar botón de conectar Google si es necesario */}
+                {needsAuth && (
+                  <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-500 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                          Conecta tu Google Calendar
+                        </p>
+                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                          Para ver tus reuniones reales, necesitas conectar tu cuenta de Google.
+                        </p>
+                        <Button
+                          onClick={connectGoogle}
+                          size="sm"
+                          className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+                        >
+                          Conectar Google Calendar
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="col-span-12 lg:col-span-9 rounded-3xl overflow-hidden shadow-lg shadow-black/5 ring-1 ring-black/5 dark:ring-white/10">
                 <MeetingTimeline
@@ -143,7 +118,7 @@ export default function HomePage() {
                   selectedMeeting={selectedMeeting}
                   onMeetingSelect={setSelectedMeeting}
                   highlightedMeetingId={null}
-                  mockMeetings={mockMeetings}
+                  mockMeetings={meetings}
                 />
               </div>
             </div>
