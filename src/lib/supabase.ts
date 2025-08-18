@@ -15,7 +15,7 @@ const getAppUrl = () => {
   if (typeof window !== 'undefined') {
     return window.location.origin
   }
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'
 }
 
 // Create Supabase client with enhanced configuration for production

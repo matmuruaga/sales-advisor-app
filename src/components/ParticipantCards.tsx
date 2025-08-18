@@ -1,12 +1,14 @@
-import { Building, MapPin, Star, Users, Sparkles, TrendingUp, Phone, Mail, Linkedin, Twitter, Plus, UserPlus, Search, AlertCircle, ExternalLink } from 'lucide-react';
+import { Building, MapPin, Star, Users, Sparkles, TrendingUp, Phone, Mail, Linkedin, Twitter, Plus, UserPlus, Search, AlertCircle, ExternalLink, Loader2, CheckCircle, Clock, X, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { motion } from 'framer-motion';
-import { useParticipantManagement, type MeetingParticipant } from '@/hooks/useParticipantManagement';
+import { useMeetingParticipants, type MeetingParticipantWithContact } from '@/hooks/useMeetingParticipants';
 import { useSupabaseContacts } from '@/hooks/useSupabaseContacts';
+import { supabase } from '@/lib/supabase';
+import { apiCall } from '@/lib/api-client';
 import { useState, useEffect } from 'react';
 
 interface ParticipantCardsProps {
@@ -17,15 +19,16 @@ interface ParticipantCardsProps {
 }
 
 interface ParticipantCardProps {
-  participant: MeetingParticipant;
+  participant: MeetingParticipantWithContact;
   isSelected: boolean;
   onClick: () => void;
   onAddToContacts: (participantId: string) => void;
   onLinkToContact: (participantId: string, contactId: string) => void;
+  onEnrichParticipant: (participantId: string, linkedinUrl?: string) => void;
 }
 
 interface AddToContactsModalProps {
-  participant: MeetingParticipant | null;
+  participant: MeetingParticipantWithContact | null;
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (data: {
@@ -34,7 +37,9 @@ interface AddToContactsModalProps {
     roleTitle?: string;
     companyName?: string;
     phone?: string;
+    linkedinUrl?: string;
   }) => void;
+  loading?: boolean;
 }
 
 const roleColors = {
@@ -52,23 +57,25 @@ const enrichmentColors = {
 };
 
 // Add to Contacts Modal
-const AddToContactsModal = ({ participant, isOpen, onClose, onConfirm }: AddToContactsModalProps) => {
+const AddToContactsModal = ({ participant, isOpen, onClose, onConfirm, loading = false }: AddToContactsModalProps) => {
   const [formData, setFormData] = useState({
-    fullName: participant?.displayName || '',
+    fullName: participant?.display_name || '',
     email: participant?.email || '',
     roleTitle: '',
     companyName: '',
-    phone: ''
+    phone: '',
+    linkedinUrl: ''
   });
 
   useEffect(() => {
     if (participant) {
       setFormData({
-        fullName: participant.displayName || '',
+        fullName: participant.display_name || '',
         email: participant.email || '',
         roleTitle: '',
         companyName: '',
-        phone: ''
+        phone: '',
+        linkedinUrl: ''
       });
     }
   }, [participant]);
@@ -151,6 +158,19 @@ const AddToContactsModal = ({ participant, isOpen, onClose, onConfirm }: AddToCo
               className="w-full"
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn URL (Optional)</label>
+            <Input
+              value={formData.linkedinUrl}
+              onChange={(e) => setFormData(prev => ({ ...prev, linkedinUrl: e.target.value }))}
+              placeholder="https://linkedin.com/in/..."
+              className="w-full"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Providing LinkedIn URL will enable automatic profile enrichment
+            </p>
+          </div>
         </div>
 
         <div className="flex space-x-3 mt-6">
@@ -158,15 +178,26 @@ const AddToContactsModal = ({ participant, isOpen, onClose, onConfirm }: AddToCo
             variant="outline"
             onClick={onClose}
             className="flex-1"
+            disabled={loading}
           >
             Cancel
           </Button>
           <Button
             onClick={() => onConfirm(formData)}
             className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-            disabled={!formData.fullName || !formData.email}
+            disabled={!formData.fullName || !formData.email || loading}
           >
-            Add Contact
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Contact
+              </>
+            )}
           </Button>
         </div>
       </motion.div>
@@ -175,23 +206,48 @@ const AddToContactsModal = ({ participant, isOpen, onClose, onConfirm }: AddToCo
 };
 
 // Enhanced ParticipantCard component with new functionality
-const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, onLinkToContact }: ParticipantCardProps) => {
+const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, onLinkToContact, onEnrichParticipant }: ParticipantCardProps) => {
   const { contacts } = useSupabaseContacts();
   const [showLinkOptions, setShowLinkOptions] = useState(false);
+  const [enrichmentInProgress, setEnrichmentInProgress] = useState(false);
   
   const getInitials = (name: string) => {
     if (!name) return '?';
     return name.split(' ').map(part => part[0]).join('').toUpperCase();
   };
 
-  const isUnknownParticipant = participant.enrichmentStatus === 'pending' || participant.enrichmentStatus === 'unknown';
+  const isUnknownParticipant = participant.enrichment_status === 'pending' || participant.enrichment_status === 'unknown';
   const hasContact = participant.contact;
 
-  // Find potential matches in existing contacts
+  // Find potential matches in existing contacts - prioritize exact email matches
   const potentialMatches = contacts
-    .filter(c => c.email?.toLowerCase() === participant.email.toLowerCase() || 
-                 c.full_name?.toLowerCase().includes(participant.displayName?.toLowerCase() || ''))
+    .filter(c => {
+      const emailMatch = c.email?.toLowerCase() === participant.email.toLowerCase();
+      const nameMatch = participant.display_name && c.full_name?.toLowerCase().includes(participant.display_name.toLowerCase());
+      return emailMatch || nameMatch;
+    })
+    .sort((a, b) => {
+      // Exact email matches first
+      const aEmailMatch = a.email?.toLowerCase() === participant.email.toLowerCase();
+      const bEmailMatch = b.email?.toLowerCase() === participant.email.toLowerCase();
+      if (aEmailMatch && !bEmailMatch) return -1;
+      if (!aEmailMatch && bEmailMatch) return 1;
+      return 0;
+    })
     .slice(0, 3);
+  
+  // Auto-match if exact email match exists
+  useEffect(() => {
+    if (!hasContact && potentialMatches.length > 0) {
+      const exactEmailMatch = potentialMatches.find(c => 
+        c.email?.toLowerCase() === participant.email.toLowerCase()
+      );
+      if (exactEmailMatch) {
+        // Auto-link the exact email match
+        onLinkToContact(participant.id, exactEmailMatch.id);
+      }
+    }
+  }, [potentialMatches.length, hasContact, participant.id, participant.email]);
 
   return (
     <motion.div
@@ -218,14 +274,14 @@ const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, on
           <div className="relative">
             <Avatar className="w-12 h-12 ring-2 ring-white/50">
               {participant.contact?.avatar_url ? (
-                <img src={participant.contact.avatar_url} alt={participant.displayName} />
+                <img src={participant.contact.avatar_url} alt={participant.display_name} />
               ) : (
                 <AvatarFallback className="bg-gradient-to-br from-purple-100 to-pink-100 text-purple-700 font-bold">
-                  {getInitials(participant.displayName || participant.email)}
+                  {getInitials(participant.display_name || participant.email)}
                 </AvatarFallback>
               )}
             </Avatar>
-            {participant.isOrganizer && (
+            {participant.is_organizer && (
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
                 <Sparkles className="w-2.5 h-2.5 text-white" />
               </div>
@@ -234,7 +290,7 @@ const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, on
           
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-semibold text-gray-900 mb-1 truncate">
-              {hasContact ? participant.contact.full_name : (participant.displayName || 'Unknown')}
+              {hasContact ? participant.contact.full_name : (participant.display_name || 'Unknown')}
             </h4>
             <p className="text-xs text-gray-600 mb-1 truncate">
               {hasContact ? participant.contact.role_title : participant.email}
@@ -272,6 +328,23 @@ const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, on
         {/* Contact info or add to contacts section */}
         {hasContact ? (
           <>
+            {/* See in contacts button */}
+            <div className="flex items-center justify-end mb-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Navigate to contacts page or open in new tab
+                  window.open(`/contacts?id=${participant.contact.id}`, '_blank');
+                }}
+                className="h-6 px-2 text-xs bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+              >
+                <Eye className="w-3 h-3 mr-1" />
+                See in contacts
+              </Button>
+            </div>
+            
             {/* Contact metrics */}
             <div className="grid grid-cols-3 gap-2 mb-3">
               <div className="text-center bg-blue-50 rounded-lg py-2">
@@ -312,21 +385,50 @@ const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, on
           <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg p-3 mb-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center">
-                <AlertCircle className="w-3 h-3 mr-1 text-amber-600" />
-                <span className="text-xs font-medium text-amber-800">Unknown Participant</span>
+                {participant.enrichment_status === 'pending' ? (
+                  <Clock className="w-3 h-3 mr-1 text-amber-600" />
+                ) : (
+                  <AlertCircle className="w-3 h-3 mr-1 text-amber-600" />
+                )}
+                <span className="text-xs font-medium text-amber-800">
+                  {participant.enrichment_status === 'pending' ? 'Processing...' : 'Unknown Participant'}
+                </span>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddToContacts(participant.id);
-                }}
-                className="h-6 px-2 text-xs bg-white/50 hover:bg-white border-amber-200 text-amber-700"
-              >
-                <Plus className="w-3 h-3 mr-1" />
-                Add to Contacts
-              </Button>
+              
+              <div className="flex items-center space-x-1">
+                {/* Enrich from LinkedIn button */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEnrichmentInProgress(true);
+                    onEnrichParticipant(participant.id);
+                  }}
+                  disabled={enrichmentInProgress || participant.enrichment_status === 'pending'}
+                  className="h-6 px-2 text-xs bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                >
+                  {enrichmentInProgress ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Linkedin className="w-3 h-3" />
+                  )}
+                </Button>
+
+                {/* Add to contacts manually button */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddToContacts(participant.id);
+                  }}
+                  className="h-6 px-2 text-xs bg-white/50 hover:bg-white border-amber-200 text-amber-700"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add
+                </Button>
+              </div>
             </div>
             
             {potentialMatches.length > 0 && (
@@ -363,7 +465,7 @@ const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, on
               {hasContact && participant.contact.social_profiles?.linkedin && (
                 <Linkedin className="w-3 h-3 text-blue-600" />
               )}
-              {participant.meetingPlatform === 'google-meet' && (
+              {participant.meeting_platform === 'google-meet' && (
                 <div className="w-3 h-3 bg-blue-600 rounded-full" />
               )}
             </div>
@@ -372,22 +474,37 @@ const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, on
           <div className="flex flex-wrap gap-1">
             <Badge 
               variant="outline" 
-              className={`text-xs px-2 py-0.5 ${roleColors[participant.responseStatus]}`}
+              className={`text-xs px-2 py-0.5 ${roleColors[participant.response_status]}`}
             >
-              {participant.responseStatus}
+              {participant.response_status}
             </Badge>
             <Badge 
               variant="outline" 
-              className={`text-xs px-2 py-0.5 ${enrichmentColors[participant.enrichmentStatus]}`}
+              className={`text-xs px-2 py-0.5 ${enrichmentColors[participant.enrichment_status]}`}
             >
-              {participant.enrichmentStatus}
+              {participant.enrichment_status === 'pending' && enrichmentInProgress ? (
+                <div className="flex items-center">
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  enriching
+                </div>
+              ) : (
+                participant.enrichment_status
+              )}
             </Badge>
-            {participant.isOrganizer && (
+            {participant.is_organizer && (
               <Badge 
                 variant="outline" 
                 className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 border-purple-200"
               >
                 organizer
+              </Badge>
+            )}
+            {participant.auto_match_confidence && participant.auto_match_confidence > 0.7 && (
+              <Badge 
+                variant="outline" 
+                className="text-xs px-2 py-0.5 bg-green-100 text-green-700 border-green-200"
+              >
+                {Math.round(participant.auto_match_confidence * 100)}% match
               </Badge>
             )}
           </div>
@@ -398,9 +515,12 @@ const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, on
 };
 
 export function ParticipantCards({ meetingId, selectedParticipant, onParticipantSelect, onContactAdded }: ParticipantCardsProps) {
-  const { getParticipantsForMeeting, enrichParticipant, linkParticipantToContact } = useParticipantManagement();
+  const { getParticipantsForMeeting, linkToContact, enrichParticipant } = useMeetingParticipants(meetingId);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedForAdd, setSelectedForAdd] = useState<MeetingParticipant | null>(null);
+  const [selectedForAdd, setSelectedForAdd] = useState<MeetingParticipantWithContact | null>(null);
+  const [addContactLoading, setAddContactLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!meetingId) {
     return (
@@ -437,7 +557,7 @@ export function ParticipantCards({ meetingId, selectedParticipant, onParticipant
 
   const handleLinkToContact = async (participantId: string, contactId: string) => {
     try {
-      await linkParticipantToContact(participantId, contactId);
+      await linkToContact(participantId, contactId);
       if (onContactAdded) {
         onContactAdded(contactId);
       }
@@ -446,20 +566,76 @@ export function ParticipantCards({ meetingId, selectedParticipant, onParticipant
     }
   };
 
+  const handleEnrichParticipant = async (participantId: string, linkedinUrl?: string) => {
+    try {
+      await enrichParticipant(participantId, 'linkedin', linkedinUrl);
+    } catch (error) {
+      console.error('Failed to enrich participant:', error);
+    }
+  };
+
   const handleConfirmAddContact = async (data: any) => {
     if (!selectedForAdd) return;
 
     try {
-      const result = await enrichParticipant(selectedForAdd.id, 'manual', data);
+      setAddContactLoading(true);
+      setErrorMessage(null);
+
+      // Create contact via API
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No authenticated session');
+      }
+
+      const response = await apiCall('/api/contacts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: data.email,
+          fullName: data.fullName,
+          roleTitle: data.roleTitle,
+          companyName: data.companyName,
+          phone: data.phone,
+          linkedinUrl: data.linkedinUrl,
+          source: 'meeting_participant'
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create contact');
+      }
+
+      const result = await response.json();
       
+      // Link the participant to the new contact
+      await linkToContact(selectedForAdd.id, result.contact.id);
+      
+      // If LinkedIn URL is provided, trigger enrichment
+      if (data.linkedinUrl) {
+        await handleEnrichParticipant(selectedForAdd.id, data.linkedinUrl);
+      }
+      
+      // SUCCESS: Close modal and show success message
       setShowAddModal(false);
       setSelectedForAdd(null);
+      setSuccessMessage(`Contact "${result.contact.full_name}" created successfully!`);
+      
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
       
       if (onContactAdded) {
         onContactAdded(result.contact.id);
       }
     } catch (error) {
       console.error('Failed to add participant to contacts:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to create contact. Please try again.');
+      // Modal stays open so user can retry
+    } finally {
+      setAddContactLoading(false);
     }
   };
 
@@ -509,6 +685,7 @@ export function ParticipantCards({ meetingId, selectedParticipant, onParticipant
                 onClick={() => onParticipantSelect(participant.id)}
                 onAddToContacts={handleAddToContacts}
                 onLinkToContact={handleLinkToContact}
+                onEnrichParticipant={handleEnrichParticipant}
               />
             </motion.div>
           ))}
@@ -521,9 +698,45 @@ export function ParticipantCards({ meetingId, selectedParticipant, onParticipant
         onClose={() => {
           setShowAddModal(false);
           setSelectedForAdd(null);
+          setErrorMessage(null);
         }}
         onConfirm={handleConfirmAddContact}
+        loading={addContactLoading}
       />
+      
+      {/* Success/Error Messages */}
+      {(successMessage || errorMessage) && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
+            successMessage 
+              ? 'bg-green-100 text-green-800 border border-green-200' 
+              : 'bg-red-100 text-red-800 border border-red-200'
+          }`}
+        >
+          <div className="flex items-center">
+            {successMessage ? (
+              <CheckCircle className="w-4 h-4 mr-2" />
+            ) : (
+              <AlertCircle className="w-4 h-4 mr-2" />
+            )}
+            <span className="text-sm font-medium">
+              {successMessage || errorMessage}
+            </span>
+            <button
+              onClick={() => {
+                setSuccessMessage(null);
+                setErrorMessage(null);
+              }}
+              className="ml-4 text-current opacity-70 hover:opacity-100"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </motion.div>
+      )}
     </>
   );
 }

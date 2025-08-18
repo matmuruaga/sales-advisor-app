@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Contact } from '@/lib/supabase';
+import { apiCall } from '@/lib/api-client';
 
 export interface MeetingParticipant {
   id: string;
@@ -96,7 +97,7 @@ export function useParticipantManagement(filters?: ParticipantFilters) {
       if (filters?.contactId) searchParams.set('contactId', filters.contactId);
       if (filters?.enrichmentStatus) searchParams.set('enrichmentStatus', filters.enrichmentStatus);
 
-      const response = await fetch(`/api/participants?${searchParams.toString()}`, {
+      const response = await apiCall(`/api/participants?${searchParams.toString()}`, {
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
@@ -133,7 +134,7 @@ export function useParticipantManagement(filters?: ParticipantFilters) {
         (event.participants || event.attendees || []).map((attendee: string) => ({
           meetingId: event.id,
           meetingTitle: event.title,
-          meetingDateTime: event.dateTime,
+          meetingDateTime: new Date(event.dateTime).toISOString(),
           email: attendee,
           displayName: attendee.split('@')[0], // Extract name from email if no display name
           responseStatus: 'needsAction' as const,
@@ -147,7 +148,7 @@ export function useParticipantManagement(filters?: ParticipantFilters) {
         return { success: true, created: 0 };
       }
 
-      const response = await fetch('/api/participants', {
+      const response = await apiCall('/api/participants', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -182,7 +183,7 @@ export function useParticipantManagement(filters?: ParticipantFilters) {
         throw new Error('No authenticated session');
       }
 
-      const response = await fetch(`/api/participants/${participantId}`, {
+      const response = await apiCall(`/api/participants/${participantId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -228,7 +229,7 @@ export function useParticipantManagement(filters?: ParticipantFilters) {
         throw new Error('No authenticated session');
       }
 
-      const response = await fetch(`/api/participants/${participantId}/enrich`, {
+      const response = await apiCall(`/api/participants/${participantId}/enrich`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
