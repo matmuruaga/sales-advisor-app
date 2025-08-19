@@ -1,0 +1,320 @@
+{
+  "backup_info": {
+    "created_date": "2025-01-19",
+    "created_time": "12:45:00 UTC",
+    "purpose": "Pre-RLS implementation backup for rollback capability",
+    "backup_type": "complete_configuration",
+    "backup_version": "1.0",
+    "agent": "data-migration-specialist",
+    "project": "sales-advisor-app"
+  },
+  
+  "database_state": {
+    "total_public_tables": 36,
+    "tables_with_rls_enabled": 27,
+    "tables_without_rls": 9,
+    "critical_tables_without_rls": [
+      "users",
+      "user_sessions", 
+      "user_performance",
+      "ai_model_configs",
+      "api_rate_limits",
+      "auth_session_monitoring",
+      "contact_embeddings",
+      "real_time_presence",
+      "system_logs"
+    ],
+    "total_rls_policies": 115,
+    "security_definer_functions": 24,
+    "functions_without_search_path": 24
+  },
+  
+  "extensions": {
+    "total_available": 74,
+    "currently_installed": 7,
+    "installed_extensions": [
+      {
+        "name": "vector",
+        "version": "0.8.0",
+        "schema": "public"
+      },
+      {
+        "name": "pg_graphql", 
+        "version": "1.5.11",
+        "schema": "graphql"
+      },
+      {
+        "name": "plpgsql",
+        "version": "1.0", 
+        "schema": "pg_catalog"
+      },
+      {
+        "name": "pg_stat_statements",
+        "version": "1.11",
+        "schema": "extensions"
+      },
+      {
+        "name": "uuid-ossp",
+        "version": "1.1",
+        "schema": "extensions" 
+      },
+      {
+        "name": "pgcrypto",
+        "version": "1.3",
+        "schema": "extensions"
+      },
+      {
+        "name": "supabase_vault",
+        "version": "0.3.1",
+        "schema": "vault"
+      }
+    ]
+  },
+  
+  "tables_analysis": {
+    "tables_with_rls_enabled": {
+      "count": 27,
+      "examples": [
+        "meeting_participants",
+        "contacts", 
+        "organizations",
+        "actions",
+        "activities",
+        "companies",
+        "deals"
+      ]
+    },
+    "tables_without_rls": {
+      "count": 9,
+      "details": [
+        {
+          "table_name": "users",
+          "has_policies": true,
+          "policy_count": 6,
+          "reason": "Core authentication table",
+          "risk_level": "CRITICAL"
+        },
+        {
+          "table_name": "user_sessions", 
+          "has_policies": true,
+          "policy_count": 1,
+          "reason": "Session management",
+          "risk_level": "HIGH"
+        },
+        {
+          "table_name": "user_performance",
+          "has_policies": true, 
+          "policy_count": 4,
+          "reason": "Performance tracking",
+          "risk_level": "HIGH"
+        },
+        {
+          "table_name": "ai_model_configs",
+          "has_policies": true,
+          "policy_count": 2, 
+          "reason": "Contains API keys",
+          "risk_level": "CRITICAL"
+        },
+        {
+          "table_name": "api_rate_limits",
+          "has_policies": true,
+          "policy_count": 1,
+          "reason": "Rate limiting data", 
+          "risk_level": "MEDIUM"
+        },
+        {
+          "table_name": "auth_session_monitoring",
+          "has_policies": false,
+          "policy_count": 0,
+          "reason": "Security monitoring",
+          "risk_level": "MEDIUM"
+        },
+        {
+          "table_name": "contact_embeddings", 
+          "has_policies": true,
+          "policy_count": 2,
+          "reason": "AI embeddings",
+          "risk_level": "MEDIUM"
+        },
+        {
+          "table_name": "real_time_presence",
+          "has_policies": true,
+          "policy_count": 4,
+          "reason": "Live presence data",
+          "risk_level": "LOW"
+        },
+        {
+          "table_name": "system_logs",
+          "has_policies": false, 
+          "policy_count": 0,
+          "reason": "System logging",
+          "risk_level": "LOW"
+        }
+      ]
+    }
+  },
+  
+  "security_analysis": {
+    "critical_vulnerabilities": [
+      {
+        "type": "RLS_DISABLED_ON_SENSITIVE_TABLES",
+        "affected_tables": ["users", "ai_model_configs"],
+        "severity": "CRITICAL",
+        "description": "Core authentication and API configuration tables lack RLS protection"
+      },
+      {
+        "type": "SECURITY_DEFINER_WITHOUT_SEARCH_PATH", 
+        "affected_functions": 24,
+        "severity": "HIGH",
+        "description": "All SECURITY DEFINER functions lack search_path configuration"
+      },
+      {
+        "type": "POLICIES_WITHOUT_RLS",
+        "affected_tables": 6,
+        "severity": "MEDIUM", 
+        "description": "Tables have policies defined but RLS is disabled"
+      }
+    ],
+    "recommendations": [
+      "Enable RLS on all 9 critical tables",
+      "Add SET search_path = public, extensions to all SECURITY DEFINER functions",
+      "Implement organization-based isolation policies",
+      "Add policies for auth_session_monitoring and system_logs tables"
+    ]
+  },
+  
+  "backup_files": {
+    "01-rls-status.sql": {
+      "description": "Current RLS status for all tables",
+      "size_kb": "estimated_15",
+      "contains": "RLS enable/disable status, table statistics, policy counts"
+    },
+    "02-table-schemas.sql": {
+      "description": "Schema information for critical tables", 
+      "size_kb": "estimated_25",
+      "contains": "meeting_participants schema details, critical table info"
+    },
+    "03-rls-policies.sql": {
+      "description": "Complete backup of all RLS policies",
+      "size_kb": "estimated_50",
+      "contains": "All 115 RLS policies with full definitions" 
+    },
+    "04-functions.sql": {
+      "description": "All SECURITY DEFINER functions backup",
+      "size_kb": "estimated_80",
+      "contains": "Complete definitions of 24 functions"
+    },
+    "05-extensions.sql": {
+      "description": "Extension configuration backup",
+      "size_kb": "estimated_10",
+      "contains": "Installed extensions and available extensions list"
+    }
+  },
+  
+  "rollback_scripts": {
+    "01-rollback-rls.sql": {
+      "description": "Rollback RLS changes to original state",
+      "execution_order": 1,
+      "estimated_runtime_minutes": 2
+    },
+    "02-rollback-functions.sql": {
+      "description": "Restore SECURITY DEFINER functions",
+      "execution_order": 2, 
+      "estimated_runtime_minutes": 5
+    },
+    "03-rollback-schemas.sql": {
+      "description": "Rollback schema modifications",
+      "execution_order": 3,
+      "estimated_runtime_minutes": 3
+    },
+    "rollback-all.sh": {
+      "description": "Master rollback script with validation",
+      "type": "bash_script",
+      "requires_manual_confirmation": true
+    }
+  },
+  
+  "validation_data": {
+    "record_counts": {
+      "note": "Verify these counts match after rollback",
+      "tables_to_verify": [
+        "meeting_participants",
+        "users", 
+        "contacts",
+        "organizations",
+        "actions"
+      ]
+    },
+    "critical_functions": [
+      "get_user_organization",
+      "get_user_role", 
+      "is_session_valid",
+      "validate_user_session"
+    ],
+    "test_queries": [
+      "SELECT COUNT(*) FROM users WHERE organization_id IS NOT NULL;",
+      "SELECT COUNT(*) FROM meeting_participants;",
+      "SELECT get_user_organization();"
+    ]
+  },
+  
+  "risk_assessment": {
+    "rollback_risks": [
+      {
+        "risk": "Data corruption during rollback",
+        "mitigation": "Pre-rollback backup created", 
+        "probability": "LOW"
+      },
+      {
+        "risk": "Application functionality breaks",
+        "mitigation": "Comprehensive validation scripts",
+        "probability": "MEDIUM"
+      },
+      {
+        "risk": "Security vulnerabilities re-introduced", 
+        "mitigation": "Expected - restores original insecure state",
+        "probability": "CERTAIN"
+      }
+    ],
+    "implementation_risks": [
+      {
+        "risk": "RLS breaks existing queries",
+        "mitigation": "Phased implementation with testing",
+        "probability": "HIGH"
+      },
+      {
+        "risk": "Performance degradation", 
+        "mitigation": "Index optimization and query tuning",
+        "probability": "MEDIUM"
+      },
+      {
+        "risk": "Function calls fail with search_path",
+        "mitigation": "Comprehensive function testing",
+        "probability": "LOW"
+      }
+    ]
+  },
+  
+  "next_steps": {
+    "for_rls_implementation": [
+      "Enable RLS on 9 critical tables one by one",
+      "Add search_path to all 24 SECURITY DEFINER functions", 
+      "Test each table individually",
+      "Create missing policies for 2 tables without them",
+      "Implement comprehensive testing strategy"
+    ],
+    "for_rollback_if_needed": [
+      "Execute rollback-all.sh script",
+      "Verify validation queries pass",
+      "Test application functionality",
+      "Monitor error logs for issues", 
+      "Contact support if problems persist"
+    ]
+  },
+  
+  "contact_info": {
+    "backup_created_by": "Claude Data Migration Specialist",
+    "support_documentation": "README.md in backup directory",
+    "emergency_contact": "Check project documentation"
+  }
+}

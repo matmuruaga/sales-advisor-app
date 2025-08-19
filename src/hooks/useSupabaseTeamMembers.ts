@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useSupabase } from './useSupabase';
-import { generateMockTeamMembers, calculateMockTeamMetrics } from '@/lib/mockTeamData';
+import { getTeamMembers } from '@/lib/userQueries';
 
 // Interface que coincide con la estructura esperada por TeamPage
 export interface TeamMember {
@@ -70,16 +70,11 @@ export const useSupabaseTeamMembers = () => {
       const currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const currentPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-      // First fetch users from the current organization
-      const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('organization_id', organization.id)
-        .in('role', ['rep', 'bdr', 'manager']);
-
-      if (usersError) {
-        console.error('Users query error:', usersError);
-        throw usersError;
+      // RLS-READY: Fetch users from the current organization using helper
+      const usersData = await getTeamMembers(supabase, organization.id);
+      
+      if (!usersData || usersData.length === 0) {
+        console.log('No team members found for organization:', organization.id);
       }
 
       // Then fetch performance data for the current period
@@ -182,10 +177,8 @@ export const useSupabaseTeamMembers = () => {
     } catch (err) {
       console.error('Error fetching team members:', err);
       
-      // Fallback to mock data in case of error
-      console.log('Falling back to mock data due to error');
-      const mockMembers = generateMockTeamMembers();
-      setTeamMembers(mockMembers);
+      // Log error but don't fallback to mock data
+      console.error('Failed to fetch team members');
       
       // Set error for debugging, but don't block UI since we have fallback data
       setError(`Database error (using mock data): ${err instanceof Error ? err.message : 'Failed to fetch team members'}`);
@@ -221,7 +214,12 @@ export const useSupabaseTeamMembers = () => {
   }, []);
 
   // Calculate team aggregate metrics
-  const teamMetrics = calculateMockTeamMetrics(teamMembers);
+  const teamMetrics = {
+    totalMembers: teamMembers.length,
+    averageQuota: teamMembers.reduce((acc, m) => acc + m.performance.quotaAttainment, 0) / teamMembers.length || 0,
+    topPerformers: teamMembers.filter(m => m.performance.status === 'excellent').length,
+    needsCoaching: teamMembers.filter(m => m.coachingPriority === 'high').length
+  };
 
   return {
     teamMembers,

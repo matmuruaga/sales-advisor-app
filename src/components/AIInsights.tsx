@@ -27,7 +27,6 @@ import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { AnimatePresence, motion } from 'framer-motion';
-import { mockContacts } from '@/data/mockContacts';
 
 /* ───────────────────────── TYPES ───────────────────────── */
 interface AIInsightsProps {

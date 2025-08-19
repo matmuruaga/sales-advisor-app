@@ -1,11 +1,20 @@
 // src/hooks/useSupabase.ts
 import { supabase, type User, type Organization } from '@/lib/supabase';
+import { 
+  isMockAuthEnabled, 
+  isFeatureEnabled, 
+  FeatureFlag,
+  logFeatureUsage 
+} from '@/lib/featureFlags';
 
 export const useSupabase = () => {
   
-  // Mock user and organization data for development
-  // En producción, esto debería venir del contexto de autenticación real
-  const user: User = {
+  // Check if mock auth is enabled via feature flags
+  const mockAuthEnabled = isMockAuthEnabled();
+  const rlsEnabled = isFeatureEnabled(FeatureFlag.RLS_ENABLED);
+  
+  // Mock user and organization data for development/testing
+  const mockUser: User = {
     id: 'cc99e9f4-f68a-45f8-9d59-282cca1d0f94',
     organization_id: '47fba630-b113-4fe9-b68f-947d79c09fb2',
     email: 'matias@elevaitelabs.io',
@@ -18,7 +27,7 @@ export const useSupabase = () => {
     updated_at: new Date().toISOString()
   };
 
-  const organization: Organization = {
+  const mockOrganization: Organization = {
     id: '47fba630-b113-4fe9-b68f-947d79c09fb2',
     name: 'ElevaiteLabs',
     domain: 'elevaitelabs.io',
@@ -29,10 +38,35 @@ export const useSupabase = () => {
     updated_at: new Date().toISOString()
   };
   
+  // Log the auth method being used
+  logFeatureUsage('useSupabase_authMethod', mockAuthEnabled, {
+    mockAuth: mockAuthEnabled,
+    rlsEnabled,
+    userId: mockUser.id
+  });
+  
+  // In production with RLS enabled, this should come from real authentication context
+  // For now, we use mock data when mock auth is enabled
+  if (mockAuthEnabled) {
+    return {
+      supabase,
+      user: mockUser,
+      organization: mockOrganization,
+      isMockAuth: true
+    };
+  }
+  
+  // TODO: Implement real authentication flow when mock auth is disabled
+  // This should integrate with Supabase Auth and retrieve real user/org data
+  // For now, return mock data as fallback with warning
+  console.warn('Mock auth disabled but real auth not implemented yet - using mock data as fallback');
+  
   return {
     supabase,
-    user,
-    organization
+    user: mockUser,
+    organization: mockOrganization,
+    isMockAuth: false,
+    warning: 'Real auth not implemented - using mock data'
   };
 };
 

@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "validate:env": "node scripts/validate-environment.js",
+    "validate:env:dev": "node scripts/validate-environment.js development",
+    "validate:env:staging": "node scripts/validate-environment.js staging",
+    "validate:env:prod": "node scripts/validate-environment.js production",
+    "performance:report": "node scripts/performance-test.js",
+    "prebuild": "npm run validate:env"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.60.0",

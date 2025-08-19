@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { enhancedMockContacts as mockContacts } from '@/data/enhancedMockContacts';
+// Mock contacts removed - will use real data from props
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,8 +22,9 @@ interface CompanyDetailPanelProps {
 export const CompanyDetailPanel = ({ companyName, onClose }: CompanyDetailPanelProps) => {
   const [activeTab, setActiveTab] = useState('overview');
   
-  // Get all contacts from this company
-  const companyContacts = mockContacts.filter(c => c.company === companyName);
+  // TODO: Get contacts from real data source (Supabase)
+  // For now, using empty array until real data integration
+  const companyContacts: any[] = [];
   const primaryContact = companyContacts[0]; // Use first contact for company data
   
   // Handle Escape key press

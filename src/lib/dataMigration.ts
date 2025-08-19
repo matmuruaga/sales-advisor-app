@@ -1,8 +1,12 @@
 // src/lib/dataMigration.ts
+// 🚨 SPECIAL CASE: This file uses SERVICE_ROLE_KEY for administrative operations
+// 🚨 RLS BYPASS: These operations intentionally bypass RLS for data migration
+// 🚨 SECURITY: This should ONLY be used for admin/migration operations, NEVER in frontend
 import { createClient } from '@supabase/supabase-js';
-import { mockContacts } from '@/data/mockContacts';
-import { mockTeamMembers } from '@/data/mockTeamMembers';
-import { mockReports } from '@/data/mockReports';
+// Mock data imports removed - use real data only
+// import { mockContacts } from '@/data/mockContacts';
+// import { mockTeamMembers } from '@/data/mockTeamMembers';
+// import { mockReports } from '@/data/mockReports';
 import { promptTemplates } from '@/data/promptTemplates';
 import { quickActionTemplates } from '@/data/quickActionTemplates';
 import { actionHistory } from '@/data/actionHistory';
