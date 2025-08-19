@@ -82,11 +82,16 @@ const environmentVariables = {
       validate: (value, env) => {
         const envUrls = {
           development: 'http://localhost:3001/api/auth/callback/google',
-          staging: /^https:\/\/staging-.+\.vercel\.app\/api\/auth\/callback\/google$/,
-          production: /^https:\/\/[^\/]+\/api\/auth\/callback\/google$/
+          staging: /^https:\/\/.*\.vercel\.app\/api\/auth\/callback\/google$/,
+          production: /^https:\/\/.*\.vercel\.app\/api\/auth\/callback\/google$/
         };
         
-        if (env === 'development') {
+        // In Vercel, accept any vercel.app URL
+        if (process.env.VERCEL) {
+          return /^https:\/\/.*\.vercel\.app\/api\/auth\/callback\/google$/.test(value);
+        }
+        
+        if (env === 'development' && !process.env.VERCEL) {
           return value === envUrls.development;
         } else {
           return envUrls[env].test(value);
@@ -100,10 +105,20 @@ const environmentVariables = {
       validate: (value, env) => {
         const patterns = {
           development: /^https?:\/\/localhost:[0-9]+$/,
-          staging: /^https:\/\/staging-.+\.vercel\.app$/,
-          production: /^https:\/\/[^\/]+$/
+          staging: /^https:\/\/.*\.vercel\.app$/,
+          production: /^https:\/\/.*\.vercel\.app$/
         };
-        return patterns[env] ? patterns[env].test(value) : true;
+        
+        // In Vercel, accept any vercel.app URL
+        if (process.env.VERCEL) {
+          return /^https:\/\/.*\.vercel\.app$/.test(value);
+        }
+        
+        if (env === 'development' && !process.env.VERCEL) {
+          return patterns.development.test(value);
+        } else {
+          return patterns[env] ? patterns[env].test(value) : true;
+        }
       }
     }
   },
@@ -312,6 +327,15 @@ function validateFeatureFlags(env, environment) {
 
 // Main validation function
 function validateEnvironment(environment = 'development') {
+  // Auto-detect environment from NEXT_PUBLIC_ENVIRONMENT or VERCEL_ENV
+  if (process.env.NEXT_PUBLIC_ENVIRONMENT) {
+    environment = process.env.NEXT_PUBLIC_ENVIRONMENT;
+  } else if (process.env.VERCEL_ENV === 'production') {
+    environment = 'production';
+  } else if (process.env.VERCEL_ENV === 'preview') {
+    environment = 'staging';
+  }
+  
   log.header(`Validating environment configuration for: ${environment.toUpperCase()}`);
   console.log('');
 
