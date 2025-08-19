@@ -13,9 +13,9 @@ Make sure these environment variables are set in your Vercel project:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://bscgeritvbwvrlrsipbj.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzY2dlcml0dmJ3dnJscnNpcGJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQyMjIxNDksImV4cCI6MjA2OTc5ODE0OX0.b_My8wR21puz-uEqe9vhYSrYcn36M6IXZzT_zM6Uz5M
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_secret_83cFQ7friA8lN6q3wBKJ9w_aIvSGDZX
 NEXT_PUBLIC_APP_NAME="Sales Advisor App"
-NEXT_PUBLIC_APP_URL=https://your-vercel-domain.vercel.app
+NEXT_PUBLIC_APP_URL=https://6-sense-eight.vercel.app
 ```
 
 ## Supabase Dashboard Configuration

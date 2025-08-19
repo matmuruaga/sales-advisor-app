@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+import { getAuthContext } from '@/lib/userQueries';
 
 // Validation schemas
 const ParticipantCreateSchema = z.object({
@@ -51,24 +52,14 @@ async function getAuthenticatedSupabase(request: NextRequest) {
     }
   );
 
-  const { data: { user }, error } = await supabase.auth.getUser();
+  // RLS-READY: Use the helper function that handles organization lookup safely
+  const authContext = await getAuthContext(supabase);
   
-  if (error || !user) {
-    throw new Error('Authentication failed');
-  }
-
-  // Get user's organization
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('organization_id')
-    .eq('id', user.id)
-    .single();
-
-  if (userError || !userData) {
-    throw new Error('User organization not found');
-  }
-
-  return { supabase, user, organizationId: userData.organization_id };
+  return { 
+    supabase, 
+    user: authContext.user, 
+    organizationId: authContext.organizationId 
+  };
 }
 
 // GET /api/participants - List participants with optional filters

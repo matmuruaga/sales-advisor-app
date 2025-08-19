@@ -17,7 +17,6 @@ import { Card, CardContent, CardHeader } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { motion } from 'framer-motion';
-import { mockContacts } from '@/data/mockContacts';
 
 interface ActionPanelProps {
   participantId: string | null;

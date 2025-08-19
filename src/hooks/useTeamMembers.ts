@@ -1,6 +1,7 @@
 // src/hooks/useTeamMembers.ts
 import { useState, useEffect } from 'react';
 import { useSupabase, Database } from './useSupabase';
+import { getTeamMembers } from '@/lib/userQueries';
 
 type User = Database['public']['Tables']['users']['Row'];
 type UserPerformance = Database['public']['Tables']['user_performance']['Row'];
@@ -15,30 +16,36 @@ export const useTeamMembers = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMemberWithPerformance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = useSupabase();
+  const { supabase, user, organization } = useSupabase();
 
   const fetchTeamMembers = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Check organization context for RLS
+      if (!organization?.id) {
+        setError('No organization context available');
+        return;
+      }
+
       // Get current period dates
       const now = new Date();
       const currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const currentPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-      // Fetch users with their performance data
-      const { data: users, error: usersError } = await supabase
-        .from('users')
-        .select('*')
-        .in('role', ['rep', 'bdr', 'manager']);
+      // RLS-READY: Fetch users with their performance data using helper
+      const users = await getTeamMembers(supabase, organization.id);
+      
+      if (!users || users.length === 0) {
+        console.log('No team members found for organization:', organization.id);
+      }
 
-      if (usersError) throw usersError;
-
-      // Fetch performance data for current period
+      // Fetch performance data for current period - RLS ready
       const { data: performance, error: perfError } = await supabase
         .from('user_performance')
         .select('*')
+        .eq('organization_id', organization.id)
         .gte('period_start', currentPeriodStart.toISOString().split('T')[0])
         .lte('period_end', currentPeriodEnd.toISOString().split('T')[0]);
 
@@ -85,6 +92,10 @@ export const useTeamMembers = () => {
     performanceData: Partial<Database['public']['Tables']['user_performance']['Insert']>
   ) => {
     try {
+      if (!organization?.id) {
+        return { success: false, error: 'No organization context available' };
+      }
+
       const now = new Date();
       const currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const currentPeriodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -93,6 +104,7 @@ export const useTeamMembers = () => {
         .from('user_performance')
         .upsert({
           user_id: userId,
+          organization_id: organization.id,
           period_start: currentPeriodStart.toISOString().split('T')[0],
           period_end: currentPeriodEnd.toISOString().split('T')[0],
           ...performanceData,
@@ -128,12 +140,17 @@ export const useTeamStats = () => {
     avgWinRate: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = useSupabase();
+  const { supabase, organization } = useSupabase();
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         setLoading(true);
+
+        if (!organization?.id) {
+          console.error('No organization context for team stats');
+          return;
+        }
 
         const now = new Date();
         const currentPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -142,6 +159,7 @@ export const useTeamStats = () => {
         const { data, error } = await supabase
           .from('user_performance')
           .select('quota_attainment, win_rate, pipeline_value, performance_status')
+          .eq('organization_id', organization.id)
           .gte('period_start', currentPeriodStart.toISOString().split('T')[0])
           .lte('period_end', currentPeriodEnd.toISOString().split('T')[0]);
 

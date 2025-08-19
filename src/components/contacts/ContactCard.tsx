@@ -1,5 +1,36 @@
-import { Mail, Building2, Star, MoreHorizontal, Clock } from 'lucide-react';
-import { statusConfig, type Contact } from '@/data/mockContacts'
+import { Mail, Building2, Star, MoreHorizontal, Clock, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+
+// Status configuration
+const statusConfig = {
+  hot: {
+    label: 'Hot',
+    color: 'bg-red-50 border-red-300 text-red-700',
+    icon: TrendingUp
+  },
+  warm: {
+    label: 'Warm',
+    color: 'bg-orange-50 border-orange-300 text-orange-700',
+    icon: AlertCircle
+  },
+  cold: {
+    label: 'Cold',
+    color: 'bg-blue-50 border-blue-300 text-blue-700',
+    icon: CheckCircle
+  }
+};
+
+// Contact type definition
+interface Contact {
+  id: string;
+  name: string;
+  role: string;
+  avatar: string;
+  status: 'hot' | 'warm' | 'cold';
+  company: string;
+  email: string;
+  score: number;
+  lastActivity?: string;
+}
 interface ContactCardProps {
   contact: Contact;
   onSelect: (contact: Contact) => void;

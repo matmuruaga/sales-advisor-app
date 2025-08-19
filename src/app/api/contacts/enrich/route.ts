@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getAuthContext } from '@/lib/userQueries';
 
 interface EnrichContactRequest {
   email: string;
@@ -263,14 +264,12 @@ export async function GET(request: NextRequest) {
       refresh_token: token
     });
 
-    // Get user's organization
-    const { data: userData, error: userError } = await supabaseClient
-      .from('users')
-      .select('organization_id')
-      .eq('id', (await supabaseClient.auth.getUser()).data.user?.id)
-      .single();
-
-    if (userError || !userData) {
+    // RLS-READY: Get user's organization using helper
+    let userData;
+    try {
+      const authContext = await getAuthContext(supabaseClient);
+      userData = { organization_id: authContext.organizationId };
+    } catch (error) {
       return NextResponse.json(
         { error: 'Failed to get user organization' },
         { status: 403 }

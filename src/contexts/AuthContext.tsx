@@ -46,7 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('👤 Loading user profile for:', authUser.id)
       
-      // Cargar perfil del usuario desde la tabla users
+      // RLS-READY: This query works with RLS because we're querying by the authenticated user's ID
+      // The user can always see their own record
       const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('*')

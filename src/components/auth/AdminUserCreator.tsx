@@ -117,7 +117,8 @@ export function AdminUserCreator() {
 
   const checkUserExists = async () => {
     try {
-      // Verificar en public.users
+      // RLS-BYPASS: This is an admin operation for user creation
+      // In production, this should use service_role or be moved to server-side
       const { data: publicUser } = await supabase
         .from('users')
         .select('*')
