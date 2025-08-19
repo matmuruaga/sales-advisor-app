@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase-server';
 import { createClient } from '@supabase/supabase-js';
 
 // Types for request/response
@@ -14,7 +13,7 @@ interface CreateContactRequest {
   avatarUrl?: string;
   source?: string;
   tags?: string[];
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 interface ContactResponse {
@@ -34,7 +33,7 @@ interface ContactResponse {
 
 // Upsert contact function - create or update existing contact
 async function upsertContact(
-  supabaseClient: any,
+  supabaseClient: ReturnType<typeof createClient>,
   organizationId: string,
   contactData: CreateContactRequest
 ): Promise<ContactResponse> {
