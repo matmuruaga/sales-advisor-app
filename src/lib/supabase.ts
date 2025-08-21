@@ -15,7 +15,7 @@ const getAppUrl = () => {
   if (typeof window !== 'undefined') {
     return window.location.origin
   }
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'
 }
 
 // Create Supabase client with enhanced configuration for production
@@ -25,7 +25,12 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKe
     persistSession: true,
     detectSessionInUrl: false, // Fixed: false for password-based auth
     flowType: 'pkce', // More secure auth flow
-    redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined
+    redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined,
+    // Add storage options for better token management
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    storageKey: 'sales-advisor-auth',
+    // Configure auto-refresh to happen 60 seconds before token expiry
+    autoRefreshBuffer: 60 // seconds before token expiry to refresh
   },
   // Add realtime configuration
   realtime: {
@@ -34,6 +39,32 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKe
     }
   }
 })
+
+// Add auth state change listener for debugging and auto-refresh monitoring
+if (typeof window !== 'undefined') {
+  supabase.auth.onAuthStateChange((event, session) => {
+    console.log(`🔐 Auth event: ${event}`, {
+      event,
+      hasSession: !!session,
+      expiresAt: session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
+      expiresIn: session?.expires_in ? `${session.expires_in} seconds` : null,
+      timeUntilExpiry: session?.expires_at 
+        ? `${Math.round((session.expires_at * 1000 - Date.now()) / 1000 / 60)} minutes`
+        : null
+    })
+    
+    // Log token refresh events specifically
+    if (event === 'TOKEN_REFRESHED') {
+      console.log('✅ Token refreshed successfully')
+    }
+    
+    // Handle session expiry
+    if (event === 'SIGNED_OUT') {
+      console.log('⚠️ Session expired or user signed out')
+      // Could redirect to login page here if needed
+    }
+  })
+}
 
 // Types generados desde la base de datos
 export type Organization = {

@@ -42,7 +42,7 @@ function mapEventToMeeting(event: any): Meeting {
     duration: duration.toString(),
     platform: event.platform || 'google-meet',
     type,
-    participants: event.attendees
+    participants: event.attendees || [] // attendees ya es un array de strings desde google-calendar.ts
   };
 }
 
@@ -116,9 +116,20 @@ export function useGoogleCalendar(selectedDate: Date): UseGoogleCalendarReturn {
       // Automatically sync participants from calendar events
       try {
         const allMeetings = Object.values(groupedMeetings).flat();
+        console.log(`🔄 Attempting to sync participants from ${allMeetings.length} meetings`);
+        
         if (allMeetings.length > 0) {
-          await syncParticipantsFromCalendar(allMeetings);
-          console.log('✅ Participants synced from calendar events');
+          // Log sample meeting data for debugging
+          const sampleMeeting = allMeetings[0];
+          console.log('Sample meeting data:', {
+            id: sampleMeeting.id,
+            title: sampleMeeting.title,
+            participantCount: sampleMeeting.participants?.length || 0,
+            participants: sampleMeeting.participants?.slice(0, 3) // Log first 3 participants only
+          });
+          
+          const result = await syncParticipantsFromCalendar(allMeetings);
+          console.log('✅ Participants sync completed:', result);
         }
       } catch (syncError) {
         console.error('⚠️ Failed to sync participants, but calendar events loaded:', syncError);
@@ -145,28 +156,49 @@ export function useGoogleCalendar(selectedDate: Date): UseGoogleCalendarReturn {
   }, [fetchEvents]);
 
   const connectGoogle = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      setError('No hay sesión activa. Por favor inicia sesión primero.');
-      return;
-    }
-    
-    // Hacer la petición con el token de autorización
-    const response = await fetch('/api/auth/google?returnUrl=' + window.location.pathname, {
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      if (data.authUrl) {
-        window.location.href = data.authUrl;
+    try {
+      console.log('🔄 Attempting to connect Google Calendar...');
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('❌ Error getting session:', sessionError);
+        setError('Error al obtener la sesión. Por favor intenta de nuevo.');
+        return;
       }
-    } else {
-      // Si falla, intentar redirigir directamente
-      window.location.href = '/api/auth/google?returnUrl=' + window.location.pathname;
+      
+      if (!session) {
+        console.error('❌ No active session found');
+        setError('No hay sesión activa. Por favor inicia sesión primero.');
+        return;
+      }
+      
+      console.log('✅ Session found, requesting Google auth URL...');
+      
+      // Hacer la petición con el token de autorización
+      const response = await fetch('/api/auth/google?returnUrl=' + window.location.pathname, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Auth URL received:', data.authUrl ? 'Present' : 'Missing');
+        if (data.authUrl) {
+          console.log('🚀 Redirecting to Google OAuth...');
+          window.location.href = data.authUrl;
+        } else {
+          console.error('❌ No auth URL in response');
+          setError('Error al obtener URL de autorización de Google');
+        }
+      } else {
+        const errorData = await response.json().catch(() => null);
+        console.error('❌ Failed to get auth URL:', response.status, errorData);
+        setError(`Error al conectar con Google: ${errorData?.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('❌ Unexpected error in connectGoogle:', error);
+      setError('Error inesperado al conectar con Google Calendar');
     }
   }, []);
 

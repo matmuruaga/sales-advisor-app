@@ -217,6 +217,7 @@ export const useSupabaseTeamMembers = () => {
   const teamMetrics = {
     totalMembers: teamMembers.length,
     averageQuota: teamMembers.reduce((acc, m) => acc + m.performance.quotaAttainment, 0) / teamMembers.length || 0,
+    averageWinRate: teamMembers.reduce((acc, m) => acc + m.performance.winRate, 0) / teamMembers.length || 0,
     topPerformers: teamMembers.filter(m => m.performance.status === 'excellent').length,
     needsCoaching: teamMembers.filter(m => m.coachingPriority === 'high').length
   };

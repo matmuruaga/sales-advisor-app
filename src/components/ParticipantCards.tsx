@@ -7,6 +7,7 @@ import { Input } from './ui/input';
 import { motion } from 'framer-motion';
 import { useMeetingParticipants, type MeetingParticipantWithContact } from '@/hooks/useMeetingParticipants';
 import { useSupabaseContacts } from '@/hooks/useSupabaseContacts';
+import type { Contact } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase';
 import { apiCall } from '@/lib/api-client';
 import { useState, useEffect } from 'react';
@@ -25,6 +26,7 @@ interface ParticipantCardProps {
   onAddToContacts: (participantId: string) => void;
   onLinkToContact: (participantId: string, contactId: string) => void;
   onEnrichParticipant: (participantId: string, linkedinUrl?: string) => void;
+  contacts: Contact[]; // Add contacts prop
 }
 
 interface AddToContactsModalProps {
@@ -206,8 +208,7 @@ const AddToContactsModal = ({ participant, isOpen, onClose, onConfirm, loading =
 };
 
 // Enhanced ParticipantCard component with new functionality
-const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, onLinkToContact, onEnrichParticipant }: ParticipantCardProps) => {
-  const { contacts } = useSupabaseContacts();
+const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, onLinkToContact, onEnrichParticipant, contacts }: ParticipantCardProps) => {
   const [showLinkOptions, setShowLinkOptions] = useState(false);
   const [enrichmentInProgress, setEnrichmentInProgress] = useState(false);
   
@@ -516,6 +517,7 @@ const ParticipantCard = ({ participant, isSelected, onClick, onAddToContacts, on
 
 export function ParticipantCards({ meetingId, selectedParticipant, onParticipantSelect, onContactAdded }: ParticipantCardsProps) {
   const { getParticipantsForMeeting, linkToContact, enrichParticipant } = useMeetingParticipants(meetingId);
+  const { contacts } = useSupabaseContacts(); // Move the hook here, called once for all participants
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedForAdd, setSelectedForAdd] = useState<MeetingParticipantWithContact | null>(null);
   const [addContactLoading, setAddContactLoading] = useState(false);
@@ -686,6 +688,7 @@ export function ParticipantCards({ meetingId, selectedParticipant, onParticipant
                 onAddToContacts={handleAddToContacts}
                 onLinkToContact={handleLinkToContact}
                 onEnrichParticipant={handleEnrichParticipant}
+                contacts={contacts}
               />
             </motion.div>
           ))}

@@ -2,16 +2,14 @@
 export function getApiBaseUrl(): string {
   // For client-side
   if (typeof window !== 'undefined') {
-    // In development, always use port 3001
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return 'http://localhost:3001';
-    }
-    // In production, use the current origin
+    // Always use the current origin (this handles both dev and prod)
+    // This ensures the API calls go to the same server that served the page
     return window.location.origin;
   }
   
   // For server-side, use environment variable or default
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
+  // Updated default to use port 3002 which is the current running port
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002';
 }
 
 export async function apiCall(

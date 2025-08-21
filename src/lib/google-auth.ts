@@ -14,12 +14,31 @@ export const SCOPES = [
 ];
 
 export function getAuthUrl(state?: string) {
-  return oauth2Client.generateAuthUrl({
+  // Verificar configuración
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REDIRECT_URI) {
+    console.error('❌ Missing Google OAuth configuration:', {
+      hasClientId: !!process.env.GOOGLE_CLIENT_ID,
+      hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+      hasRedirectUri: !!process.env.GOOGLE_REDIRECT_URI,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI
+    });
+    throw new Error('Google OAuth not properly configured');
+  }
+  
+  console.log('🔧 Google OAuth Config:', {
+    clientId: process.env.GOOGLE_CLIENT_ID?.substring(0, 10) + '...',
+    redirectUri: process.env.GOOGLE_REDIRECT_URI
+  });
+  
+  const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
     prompt: 'consent',
     state: state || ''
   });
+  
+  console.log('✅ Auth URL generated with scopes:', SCOPES.length);
+  return authUrl;
 }
 
 export async function getTokens(code: string) {

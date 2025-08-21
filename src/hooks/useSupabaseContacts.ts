@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase, type Contact } from '@/lib/supabase'
+import { useSupabaseHealth } from './useSupabaseHealth'
+import { connectionManager } from '@/lib/supabase-manager'
 
 export interface ContactFilters {
   status?: 'hot' | 'warm' | 'cold'
@@ -18,6 +20,7 @@ export function useSupabaseContacts(filters?: ContactFilters) {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { isHealthy, connectionState, checkHealth } = useSupabaseHealth()
 
   const fetchContacts = useCallback(async () => {
     try {
@@ -25,8 +28,36 @@ export function useSupabaseContacts(filters?: ContactFilters) {
       setError(null)
 
       console.log('🔍 Fetching contacts with filters:', filters)
+      
+      // Check connection health first
+      if (connectionState === 'disconnected') {
+        console.log('⚠️ Supabase disconnected, checking health...')
+        const healthy = await checkHealth()
+        if (!healthy) {
+          console.error('❌ Supabase is not healthy, aborting fetch')
+          setError('Connection to database lost. Please refresh the page.')
+          setLoading(false)
+          return
+        }
+      }
 
-      // Use the original join approach - should work now with updated RLS policy
+      // Check session before making request
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session) {
+        console.log('⚠️ Session expired or not found, attempting to refresh...')
+        const { data: { session: newSession }, error: refreshError } = await supabase.auth.refreshSession()
+        
+        if (refreshError || !newSession) {
+          console.error('❌ Failed to refresh session:', refreshError)
+          setError('Session expired. Please refresh the page or log in again.')
+          setLoading(false)
+          return
+        }
+        console.log('✅ Session refreshed successfully')
+      }
+
+      // Build query
       let query = supabase
         .from('contacts')
         .select(`
@@ -70,15 +101,55 @@ export function useSupabaseContacts(filters?: ContactFilters) {
         )
       }
 
-      const { data, error: fetchError } = await query
+      // Execute query with timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Query timeout after 30 seconds')), 30000)
+      )
+      
+      try {
+        console.log('⏳ Executing Supabase query...')
+        const startTime = Date.now()
+        
+        const { data, error: fetchError } = await Promise.race([
+          query,
+          timeoutPromise
+        ]) as any
+        
+        const queryTime = Date.now() - startTime
+        console.log(`⏱️ Query completed in ${queryTime}ms`)
 
-      if (fetchError) {
-        console.error('❌ Supabase query error:', fetchError)
-        throw fetchError
+        if (fetchError) {
+          console.error('❌ Supabase query error:', {
+            message: fetchError.message,
+            code: fetchError.code,
+            details: fetchError.details,
+            hint: fetchError.hint,
+            queryTime: `${queryTime}ms`
+          })
+          
+          // Check if it's an auth error
+          if (fetchError.message?.includes('JWT') || fetchError.code === 'PGRST301') {
+            console.log('🔄 Auth error detected, attempting to refresh session...')
+            await supabase.auth.refreshSession()
+            // Retry once after refresh
+            const { data: retryData, error: retryError } = await query
+            if (retryError) throw retryError
+            console.log('✅ Retry successful after session refresh')
+            setContacts(retryData || [])
+            return
+          }
+          throw fetchError
+        }
+
+        console.log('✅ Contacts fetched successfully:', data?.length || 0, 'contacts')
+        setContacts(data || [])
+      } catch (timeoutError) {
+        if (timeoutError instanceof Error && timeoutError.message.includes('timeout')) {
+          console.error('⏱️ Query timed out')
+          throw new Error('Request timed out. Please check your connection and try again.')
+        }
+        throw timeoutError
       }
-
-      console.log('✅ Contacts fetched successfully:', data?.length || 0, 'contacts')
-      setContacts(data || [])
     } catch (err) {
       console.error('💥 Error fetching contacts:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch contacts')
@@ -93,7 +164,10 @@ export function useSupabaseContacts(filters?: ContactFilters) {
     filters?.minScore,
     filters?.maxScore,
     filters?.search,
-    JSON.stringify(filters?.tags) // Stable dependency for array
+    // Use a more stable comparison for tags array
+    filters?.tags?.join(','),
+    connectionState,
+    checkHealth
   ])
 
   const createContact = async (contactData: Partial<Contact>) => {
@@ -160,13 +234,27 @@ export function useSupabaseContacts(filters?: ContactFilters) {
     }
   }
 
-  // Set up real-time subscription
+  // Fetch contacts when filters change with debounce
   useEffect(() => {
-    console.log('🔄 Setting up contacts subscription and initial fetch')
-    fetchContacts()
+    console.log('🔄 Fetching contacts with filters')
+    
+    // Add a small debounce to prevent rapid re-fetches
+    const timeoutId = setTimeout(() => {
+      fetchContacts()
+    }, 100)
+    
+    return () => clearTimeout(timeoutId)
+  }, [fetchContacts])
 
+  // Set up real-time subscription (separate from fetching)
+  useEffect(() => {
+    console.log('📡 Setting up real-time contacts subscription')
+    
+    const channelName = `contacts_changes_${Math.random().toString(36).substr(2, 9)}`
+    connectionManager.trackChannel(channelName)
+    
     const subscription = supabase
-      .channel('contacts_changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -205,14 +293,9 @@ export function useSupabaseContacts(filters?: ContactFilters) {
     return () => {
       console.log('🧹 Cleaning up contacts subscription')
       subscription.unsubscribe()
+      connectionManager.untrackChannel(channelName)
     }
-  }, []) // Remove fetchContacts dependency to prevent loop
-
-  // Separate effect for refetching when filters change
-  useEffect(() => {
-    console.log('🔄 Filters changed, refetching contacts')
-    fetchContacts()
-  }, [fetchContacts])
+  }, []) // Real-time subscription only needs to be set up once
 
   // Derive companies from contacts to avoid undefined in SmartActionComposer
   const companies = React.useMemo(() => {

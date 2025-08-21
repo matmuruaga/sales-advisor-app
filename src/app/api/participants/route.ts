@@ -69,12 +69,12 @@ export async function GET(request: NextRequest) {
     
     const searchParams = request.nextUrl.searchParams;
     const queryParams = ParticipantQuerySchema.parse({
-      meetingId: searchParams.get('meetingId'),
-      email: searchParams.get('email'),
-      contactId: searchParams.get('contactId'),
-      enrichmentStatus: searchParams.get('enrichmentStatus'),
-      limit: searchParams.get('limit'),
-      offset: searchParams.get('offset')
+      meetingId: searchParams.get('meetingId') || undefined,
+      email: searchParams.get('email') || undefined,
+      contactId: searchParams.get('contactId') || undefined,
+      enrichmentStatus: searchParams.get('enrichmentStatus') || undefined,
+      limit: searchParams.get('limit') || undefined,
+      offset: searchParams.get('offset') || undefined
     });
 
     let query = supabase
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         *,
         contact:contacts(
           id, full_name, email, role_title, company_id, status, score, avatar_url,
-          company:companies(id, name, industry_id, employee_count, logo_url)
+          company:companies(id, name, industry_id, size_category, logo_url)
         ),
         enrichment_history:participant_enrichment_history(
           id, enrichment_type, status, confidence_score, performed_at
@@ -148,12 +148,36 @@ export async function POST(request: NextRequest) {
     
     const body = await request.json();
     
+    console.log('POST /api/participants - Received body:', {
+      isArray: Array.isArray(body),
+      length: Array.isArray(body) ? body.length : 1,
+      sample: Array.isArray(body) ? body[0] : body
+    });
+    
     // Handle both single participant and bulk creation
     const participantsData = Array.isArray(body) ? body : [body];
     
-    const validatedParticipants = participantsData.map(p => 
-      ParticipantCreateSchema.parse(p)
-    );
+    // Filter out invalid participants and validate the rest
+    const validatedParticipants = participantsData
+      .filter(p => {
+        const isValid = p && p.email && p.meetingId;
+        if (!isValid) {
+          console.warn('Filtering out participant - missing required fields:', p);
+        }
+        return isValid;
+      })
+      .map(p => {
+        try {
+          return ParticipantCreateSchema.parse(p);
+        } catch (error) {
+          console.error('Validation error for participant:', {
+            participant: p,
+            error: error instanceof Error ? error.message : error
+          });
+          return null;
+        }
+      })
+      .filter(Boolean);
 
     const participantsToInsert = validatedParticipants.map(p => ({
       organization_id: organizationId,
@@ -168,12 +192,18 @@ export async function POST(request: NextRequest) {
       meeting_platform: p.platform
     }));
 
-    // Use upsert to handle duplicate meeting_id + email combinations
+    // Log the data we're trying to insert
+    console.log('Attempting to insert participants:', {
+      count: participantsToInsert.length,
+      sample: participantsToInsert[0],
+      organizationId: organizationId
+    });
+
+    // Use upsert with the unique constraint name
     const { data: participants, error } = await supabase
       .from('meeting_participants')
       .upsert(participantsToInsert, { 
-        onConflict: 'meeting_id,email',
-        ignoreDuplicates: false 
+        onConflict: 'meeting_id,email'
       })
       .select(`
         *,
@@ -183,8 +213,20 @@ export async function POST(request: NextRequest) {
       `);
 
     if (error) {
-      console.error('Error creating participants:', error);
-      return NextResponse.json({ error: 'Failed to create participants' }, { status: 500 });
+      console.error('Error creating participants:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        organizationId: organizationId
+      });
+      
+      // Return more detailed error information
+      return NextResponse.json({ 
+        error: 'Failed to create participants',
+        details: error.message,
+        code: error.code
+      }, { status: 500 });
     }
 
     return NextResponse.json({ 

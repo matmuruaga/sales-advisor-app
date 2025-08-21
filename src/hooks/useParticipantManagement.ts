@@ -96,6 +96,10 @@ export function useParticipantManagement(filters?: ParticipantFilters) {
       if (filters?.email) searchParams.set('email', filters.email);
       if (filters?.contactId) searchParams.set('contactId', filters.contactId);
       if (filters?.enrichmentStatus) searchParams.set('enrichmentStatus', filters.enrichmentStatus);
+      
+      // Add default pagination params
+      searchParams.set('limit', '50');
+      searchParams.set('offset', '0');
 
       const response = await apiCall(`/api/participants?${searchParams.toString()}`, {
         headers: {
@@ -129,24 +133,45 @@ export function useParticipantManagement(filters?: ParticipantFilters) {
         throw new Error('No authenticated session');
       }
 
+      console.log('📅 Syncing participants from', calendarEvents.length, 'calendar events');
+
       // Transform calendar events to participant format
-      const participantsData = calendarEvents.flatMap(event => 
-        (event.participants || event.attendees || []).map((attendee: string) => ({
-          meetingId: event.id,
-          meetingTitle: event.title,
-          meetingDateTime: new Date(event.dateTime).toISOString(),
-          email: attendee,
-          displayName: attendee.split('@')[0], // Extract name from email if no display name
-          responseStatus: 'needsAction' as const,
-          isOrganizer: false,
-          isOptional: false,
-          platform: event.platform || 'google-meet'
-        }))
-      );
+      const participantsData = calendarEvents.flatMap(event => {
+        // event.participants should already be an array of email strings from useGoogleCalendar
+        const emails = event.participants || [];
+        
+        console.log(`Processing event "${event.title}" with ${emails.length} participants`);
+        
+        return emails
+          .filter((email: any) => {
+            const isValid = typeof email === 'string' && email.includes('@');
+            if (!isValid && email) {
+              console.warn('Invalid participant email format:', email);
+            }
+            return isValid;
+          })
+          .map((email: string) => ({
+            meetingId: event.id,
+            meetingTitle: event.title,
+            meetingDateTime: new Date(event.dateTime).toISOString(),
+            email: email.trim(),
+            displayName: email.split('@')[0], // Extract name from email if no display name
+            responseStatus: 'needsAction' as const,
+            isOrganizer: false,
+            isOptional: false,
+            platform: event.platform || 'google-meet'
+          }));
+      });
 
       if (participantsData.length === 0) {
+        console.log('📭 No participants to sync');
         return { success: true, created: 0 };
       }
+
+      console.log('📤 Sending participants to API:', {
+        count: participantsData.length,
+        sample: participantsData[0] // Log first participant for debugging
+      });
 
       const response = await apiCall('/api/participants', {
         method: 'POST',
