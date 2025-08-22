@@ -27,6 +27,7 @@ import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useSupabaseContacts } from '@/hooks/useSupabaseContacts';
 
 /* ───────────────────────── TYPES ───────────────────────── */
 interface AIInsightsProps {
@@ -52,13 +53,6 @@ const participantContactMapping: Record<string, string> = {
   'participant-8': '8', // Alex Rodriguez (HubSpot)
 };
 
-// Helper function to get contact data
-const getContactData = (participantId: string | null) => {
-  if (!participantId) return null;
-  const contactId = participantContactMapping[participantId];
-  return mockContacts.find(c => c.id === contactId) || null;
-};
-
 /* ───────────────────────── COMPONENT ───────────────────────── */
 export function AIInsights({ participantId }: AIInsightsProps) {
   /* --- state --- */
@@ -69,6 +63,30 @@ export function AIInsights({ participantId }: AIInsightsProps) {
 
   /* --- refs --- */
   const textScrollRef = useRef<HTMLDivElement>(null);
+
+  /* --- get contacts from Supabase --- */
+  const { contacts: supabaseContacts } = useSupabaseContacts();
+  
+  /* --- helper function to get contact data --- */
+  const getContactData = (pId: string | null) => {
+    if (!pId) return null;
+    
+    // Try to find in Supabase contacts
+    if (supabaseContacts && supabaseContacts.length > 0) {
+      // Try to find by participant ID directly
+      const contact = supabaseContacts.find(c => c.id === pId);
+      if (contact) return contact;
+      
+      // Try with mapping for legacy participant IDs
+      const contactId = participantContactMapping[pId];
+      if (contactId) {
+        return supabaseContacts.find(c => c.id === contactId) || null;
+      }
+    }
+    
+    // Return null if no contact found
+    return null;
+  };
 
   /* --- derived data --- */
   const contactData = getContactData(participantId);
