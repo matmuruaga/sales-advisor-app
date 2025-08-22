@@ -14,6 +14,17 @@ class SupabaseConnectionManager {
     this.activeChannels.add(channelName)
     console.log(`📡 Tracking channel: ${channelName}, Total active: ${this.activeChannels.size}`)
     
+    // Monitor channel state
+    const channel = supabase.getChannels().find(ch => ch.topic === channelName)
+    if (channel) {
+      console.log(`Channel ${channelName} state:`, channel.state)
+      
+      // Add state change listener
+      channel.on('system', {}, (payload) => {
+        console.log(`🔔 Channel ${channelName} state change:`, payload)
+      })
+    }
+    
     // Start cleanup timer if not already running
     if (!this.cleanupTimer) {
       this.startCleanupTimer()

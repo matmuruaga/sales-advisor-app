@@ -143,16 +143,17 @@ export function useGoogleCalendar(selectedDate: Date): UseGoogleCalendarReturn {
     }
   }, [selectedDate]);
 
+  // Combine both effects into one to avoid duplicate calls
   useEffect(() => {
-    fetchEvents();
-  }, [fetchEvents]);
-
-  useEffect(() => {
+    // Check if we're coming back from Google OAuth
     const params = new URLSearchParams(window.location.search);
     if (params.get('google_connected') === 'true') {
-      fetchEvents();
+      // Clean the URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
+    
+    // Fetch events once
+    fetchEvents();
   }, [fetchEvents]);
 
   const connectGoogle = useCallback(async () => {

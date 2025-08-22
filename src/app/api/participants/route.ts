@@ -77,21 +77,13 @@ export async function GET(request: NextRequest) {
       offset: searchParams.get('offset') || undefined
     });
 
+    // SIMPLIFIED QUERY - Fetch participants first, then fetch related data separately if needed
     let query = supabase
       .from('meeting_participants')
-      .select(`
-        *,
-        contact:contacts(
-          id, full_name, email, role_title, company_id, status, score, avatar_url,
-          company:companies(id, name, industry_id, size_category, logo_url)
-        ),
-        enrichment_history:participant_enrichment_history(
-          id, enrichment_type, status, confidence_score, performed_at
-        )
-      `)
+      .select('*')
       .eq('organization_id', organizationId)
       .order('meeting_date_time', { ascending: false })
-      .range(queryParams.offset, queryParams.offset + queryParams.limit - 1);
+      .limit(queryParams.limit);
 
     // Apply filters
     if (queryParams.meetingId) {
@@ -199,18 +191,13 @@ export async function POST(request: NextRequest) {
       organizationId: organizationId
     });
 
-    // Use upsert with the unique constraint name
+    // Use upsert with the unique constraint name - SIMPLIFIED without JOINs
     const { data: participants, error } = await supabase
       .from('meeting_participants')
       .upsert(participantsToInsert, { 
         onConflict: 'meeting_id,email'
       })
-      .select(`
-        *,
-        contact:contacts(
-          id, full_name, email, role_title, company_id, status, score, avatar_url
-        )
-      `);
+      .select('*');
 
     if (error) {
       console.error('Error creating participants:', {

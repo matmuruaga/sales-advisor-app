@@ -16,6 +16,9 @@ export interface ContactFilters {
   maxScore?: number
 }
 
+// Cache contacts in localStorage for emergency fallback
+const CONTACTS_CACHE_KEY = 'sales_advisor_contacts_cache';
+
 export function useSupabaseContacts(filters?: ContactFilters) {
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,21 +60,13 @@ export function useSupabaseContacts(filters?: ContactFilters) {
         console.log('✅ Session refreshed successfully')
       }
 
-      // Build query
+      // Build SIMPLIFIED query without complex JOINs
+      // First fetch contacts without the company JOIN
       let query = supabase
         .from('contacts')
-        .select(`
-          *,
-          company:companies(
-            id,
-            name,
-            industry_id,
-            employee_count:size_category,
-            revenue_range,
-            location:headquarters
-          )
-        `)
+        .select('*')
         .order('score', { ascending: false })
+        .limit(50) // Hard limit to prevent timeout
 
       // Apply filters
       if (filters?.status) {
@@ -101,9 +96,17 @@ export function useSupabaseContacts(filters?: ContactFilters) {
         )
       }
 
-      // Execute query with timeout
+      // Execute query with SHORTER timeout
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Query timeout after 30 seconds')), 30000)
+        setTimeout(() => {
+          console.error('🔴 TIMEOUT: Query took longer than 10 seconds');
+          console.error('Query details:', {
+            filters,
+            timestamp: new Date().toISOString(),
+            connectionState
+          });
+          reject(new Error('Query timeout after 10 seconds'))
+        }, 10000) // Reduced from 30s to 10s
       )
       
       try {
@@ -142,7 +145,21 @@ export function useSupabaseContacts(filters?: ContactFilters) {
         }
 
         console.log('✅ Contacts fetched successfully:', data?.length || 0, 'contacts')
-        setContacts(data || [])
+        const contactsData = data || []
+        setContacts(contactsData)
+        
+        // Cache the successful response
+        if (contactsData.length > 0) {
+          try {
+            localStorage.setItem(CONTACTS_CACHE_KEY, JSON.stringify({
+              data: contactsData,
+              timestamp: Date.now()
+            }))
+            console.log('💾 Contacts cached for emergency fallback')
+          } catch (e) {
+            console.warn('Failed to cache contacts:', e)
+          }
+        }
       } catch (timeoutError) {
         if (timeoutError instanceof Error && timeoutError.message.includes('timeout')) {
           console.error('⏱️ Query timed out')
@@ -152,7 +169,31 @@ export function useSupabaseContacts(filters?: ContactFilters) {
       }
     } catch (err) {
       console.error('💥 Error fetching contacts:', err)
-      setError(err instanceof Error ? err.message : 'Failed to fetch contacts')
+      
+      // Try to load from cache if query fails
+      try {
+        const cached = localStorage.getItem(CONTACTS_CACHE_KEY)
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached)
+          const cacheAge = Date.now() - timestamp
+          const maxCacheAge = 24 * 60 * 60 * 1000 // 24 hours
+          
+          if (cacheAge < maxCacheAge) {
+            console.log('📦 Using cached contacts due to connection issues')
+            console.log(`Cache age: ${Math.round(cacheAge / 1000 / 60)} minutes`)
+            setContacts(data)
+            setError('Using cached data - connection issues detected')
+          } else {
+            console.log('⏰ Cache too old, not using')
+            setError(err instanceof Error ? err.message : 'Failed to fetch contacts')
+          }
+        } else {
+          setError(err instanceof Error ? err.message : 'Failed to fetch contacts')
+        }
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError)
+        setError(err instanceof Error ? err.message : 'Failed to fetch contacts')
+      }
     } finally {
       setLoading(false)
     }
@@ -246,56 +287,54 @@ export function useSupabaseContacts(filters?: ContactFilters) {
     return () => clearTimeout(timeoutId)
   }, [fetchContacts])
 
-  // Set up real-time subscription (separate from fetching)
+  // DISABLED: Real-time subscriptions causing WebSocket issues
+  // TODO: Re-enable when Supabase fixes WebSocket reconnection issues
   useEffect(() => {
-    console.log('📡 Setting up real-time contacts subscription')
+    console.log('⚠️ Real-time subscriptions temporarily disabled')
     
-    const channelName = `contacts_changes_${Math.random().toString(36).substr(2, 9)}`
-    connectionManager.trackChannel(channelName)
+    // Instead of real-time, poll every 30 seconds when page is visible
+    let intervalId: NodeJS.Timeout | null = null
     
-    const subscription = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'contacts'
-        },
-        (payload) => {
-          console.log('🔔 Real-time update:', payload.eventType, payload)
-          
-          if (payload.eventType === 'INSERT') {
-            // Check if contact already exists to prevent duplicates
-            setContacts(prev => {
-              const exists = prev.some(c => c.id === payload.new.id)
-              if (exists) {
-                console.log('⚠️ Preventing duplicate insert for contact:', payload.new.id)
-                return prev
-              }
-              return [payload.new as Contact, ...prev]
-            })
-          } else if (payload.eventType === 'UPDATE') {
-            setContacts(prev =>
-              prev.map(contact =>
-                contact.id === payload.new.id ? payload.new as Contact : contact
-              )
-            )
-          } else if (payload.eventType === 'DELETE') {
-            setContacts(prev =>
-              prev.filter(contact => contact.id !== payload.old.id)
-            )
+    const startPolling = () => {
+      // Only poll if page is visible
+      if (!document.hidden) {
+        intervalId = setInterval(() => {
+          if (!document.hidden) {
+            console.log('🔄 Polling for contact updates...')
+            fetchContacts()
           }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      console.log('🧹 Cleaning up contacts subscription')
-      subscription.unsubscribe()
-      connectionManager.untrackChannel(channelName)
+        }, 30000) // Poll every 30 seconds
+      }
     }
-  }, []) // Real-time subscription only needs to be set up once
+    
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId)
+        intervalId = null
+      }
+    }
+    
+    // Start polling initially
+    startPolling()
+    
+    // Handle visibility changes
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling()
+      } else {
+        // Fetch immediately when page becomes visible
+        fetchContacts()
+        startPolling()
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      stopPolling()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [fetchContacts])
 
   // Derive companies from contacts to avoid undefined in SmartActionComposer
   const companies = React.useMemo(() => {

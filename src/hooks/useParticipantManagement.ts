@@ -72,6 +72,9 @@ export interface EnrichContactData {
   avatarUrl?: string;
 }
 
+// Cache participants in localStorage for emergency fallback
+const PARTICIPANTS_CACHE_KEY = 'sales_advisor_participants_cache';
+
 export function useParticipantManagement(filters?: ParticipantFilters) {
   const [participants, setParticipants] = useState<MeetingParticipant[]>([]);
   const [stats, setStats] = useState<ParticipantStats>({
@@ -114,12 +117,52 @@ export function useParticipantManagement(filters?: ParticipantFilters) {
       }
 
       const data = await response.json();
-      setParticipants(data.participants || []);
+      const participantsData = data.participants || [];
+      setParticipants(participantsData);
       setStats(data.stats || { total: 0, matched: 0, enriched: 0, unknown: 0, pending: 0 });
+
+      // Cache the successful response
+      if (participantsData.length > 0) {
+        try {
+          localStorage.setItem(PARTICIPANTS_CACHE_KEY, JSON.stringify({
+            data: participantsData,
+            stats: data.stats,
+            timestamp: Date.now()
+          }));
+          console.log('💾 Participants cached for emergency fallback');
+        } catch (e) {
+          console.warn('Failed to cache participants:', e);
+        }
+      }
 
     } catch (err) {
       console.error('Error fetching participants:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch participants');
+      
+      // Try to load from cache if API call fails
+      try {
+        const cached = localStorage.getItem(PARTICIPANTS_CACHE_KEY);
+        if (cached) {
+          const { data, stats, timestamp } = JSON.parse(cached);
+          const cacheAge = Date.now() - timestamp;
+          const maxCacheAge = 24 * 60 * 60 * 1000; // 24 hours
+          
+          if (cacheAge < maxCacheAge) {
+            console.log('📦 Using cached participants due to connection issues');
+            console.log(`Cache age: ${Math.round(cacheAge / 1000 / 60)} minutes`);
+            setParticipants(data);
+            setStats(stats || { total: 0, matched: 0, enriched: 0, unknown: 0, pending: 0 });
+            setError('Using cached data - connection issues detected');
+          } else {
+            console.log('⏰ Cache too old, not using');
+            setError(err instanceof Error ? err.message : 'Failed to fetch participants');
+          }
+        } else {
+          setError(err instanceof Error ? err.message : 'Failed to fetch participants');
+        }
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
+        setError(err instanceof Error ? err.message : 'Failed to fetch participants');
+      }
     } finally {
       setLoading(false);
     }
@@ -312,48 +355,55 @@ export function useParticipantManagement(filters?: ParticipantFilters) {
     );
   }, [participants]);
 
-  // Set up real-time subscription
+  // Set up data fetching without real-time subscriptions
   useEffect(() => {
     console.log('🔄 Setting up participant management and fetching data');
     fetchParticipants();
 
-    // Subscribe to participant changes
-    const participantSubscription = supabase
-      .channel('participant_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'meeting_participants'
-        },
-        (payload) => {
-          console.log('🔔 Participant update:', payload.eventType, payload);
-          
-          if (payload.eventType === 'INSERT') {
-            setParticipants(prev => {
-              const exists = prev.some(p => p.id === payload.new.id);
-              if (exists) return prev;
-              return [payload.new as MeetingParticipant, ...prev];
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            setParticipants(prev =>
-              prev.map(p =>
-                p.id === payload.new.id ? payload.new as MeetingParticipant : p
-              )
-            );
-          } else if (payload.eventType === 'DELETE') {
-            setParticipants(prev =>
-              prev.filter(p => p.id !== payload.old.id)
-            );
+    // DISABLED: Real-time subscriptions causing WebSocket connection issues
+    console.log('⚠️ Real-time participant subscriptions temporarily disabled');
+    
+    // Instead, poll for updates every 30 seconds when page is visible
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    const startPolling = () => {
+      if (!document.hidden) {
+        intervalId = setInterval(() => {
+          if (!document.hidden) {
+            console.log('🔄 Polling for participant updates...');
+            fetchParticipants();
           }
-        }
-      )
-      .subscribe();
-
+        }, 30000); // Poll every 30 seconds
+      }
+    };
+    
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+    
+    // Start polling initially
+    startPolling();
+    
+    // Handle visibility changes
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        // Fetch immediately when page becomes visible
+        fetchParticipants();
+        startPolling();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
     return () => {
-      console.log('🧹 Cleaning up participant subscription');
-      participantSubscription.unsubscribe();
+      console.log('🧹 Cleaning up participant polling');
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [fetchParticipants]);
 
